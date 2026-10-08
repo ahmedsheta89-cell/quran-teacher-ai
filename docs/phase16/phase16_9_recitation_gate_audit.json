@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "audit_version": "1.0.0",
+  "phase": "PHASE 16.9R",
+  "title": "Forensic Recitation Gate & Mobile UX Remediation Audit",
+  "audit_timestamp": "2026-10-08T14:30:00Z",
+  "git_baseline": {
+    "branch": "main",
+    "base_commit": "1b5b33b2cc45b4a4c86bcc7e4b3b7b375e081ddf"
+  },
+  "root_cause_analysis": {
+    "bug_classification": "CRITICAL_FALSE_POSITIVE_ADVANCEMENT",
+    "code_location": "src/components/classroom/UnifiedClassroomView.tsx:371-386",
+    "flawed_logic_expression": "normalizedObserved.includes(normalizedExpected) || normalizedExpected.includes(normalizedObserved)",
+    "mechanism_explanation": "The condition normalizedExpected.includes(normalizedObserved) evaluated to true whenever the observed string was a substring of the expected Quranic word. In Zipformer CTC streaming decoding, unvoiced humming or ambient noise frequently emits solitary consonant tokens like 'م' or 'ل'. Because 'بسم' contains 'م', 'بسم'.includes('م') evaluated to true, classifying noise/humming as MATCH and advancing the recitation word cursor.",
+    "token_leakage_vulnerability": "CTC streaming decoder state was not reset between target words, allowing tail tokens from prior speech or acoustic artifacts to bleed into subsequent evaluation windows."
+  },
+  "advancement_gate_specification": {
+    "gate_file": "src/domain/recitation/RecitationAdvancementGate.ts",
+    "gate_class": "RecitationAdvancementGate",
+    "normalization_rules": [
+      "Strip Quranic Tajweed honorifics and recitation marks (U+06D6 to U+06ED)",
+      "Normalize Tatweel/Kashida (U+0640) to empty",
+      "Normalize Alef variants (إ, أ, آ, ٱ) to standard Bare Alef (ا)",
+      "Normalize Taa Marbuta (ة) to Haa (ه)",
+      "Normalize Alef Maksura (ى) to Yaa (ي)",
+      "Strip all Tashkeel/Harakat (Fathah, Dammah, Kasrah, Sukun, Tanween, Shaddah)",
+      "Trim whitespace and collapse internal spaces"
+    ],
+    "matching_algorithm": "Levenshtein distance with similarity ratio >= 0.85 and discrete token boundary match",
+    "substring_matching_policy": "STRICTLY_PROHIBITED",
+    "minimum_confidence_threshold": 0.65,
+    "humming_filter_regex": "^[مهـ\\s\\.\\,\\-]+$",
+    "session_state_reset_enforced": true,
+    "session_id_immutability_enforced": true
+  },
+  "tested_invariants": {
+    "CASE_A_WRONG_SPEECH": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "الْحَمْدُ",
+      "expected_outcome": "canAdvance: false, status: MISMATCH",
+      "test_result": "PASS"
+    },
+    "CASE_B_HUMMING": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "ممممم",
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    },
+    "CASE_C_NOISE": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "طق طق",
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    },
+    "CASE_D_SILENCE": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "",
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    },
+    "CASE_E_SUBSTRING": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "م",
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    },
+    "CASE_F_LOW_CONFIDENCE": {
+      "input_expected": "بِسْمِ",
+      "input_observed": "بسم",
+      "acousticConfidence": 0.45,
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    },
+    "CASE_G_TOKEN_LEAKAGE": {
+      "mechanism": "InferenceWorkerClient.resetSession invoked immediately on verified word match",
+      "test_result": "PASS"
+    },
+    "CASE_H_SESSION_MISMATCH": {
+      "input_sessionId": "session-1",
+      "active_sessionId": "session-2",
+      "expected_outcome": "canAdvance: false, status: INCONCLUSIVE",
+      "test_result": "PASS"
+    }
+  },
+  "mobile_ux_hardening": {
+    "viewports_verified": [
+      {"name": "iPhone SE / Small Android", "width": 320, "height": 568},
+      {"name": "Compact Android", "width": 360, "height": 640},
+      {"name": "iPhone 8 / SE2", "width": 375, "height": 667},
+      {"name": "iPhone 12/13/14/15", "width": 390, "height": 844},
+      {"name": "Pixel 7 / Galaxy S21", "width": 412, "height": 915},
+      {"name": "iPhone 14/15 Pro Max", "width": 430, "height": 932}
+    ],
+    "remediations_applied": {
+      "meta_viewport": "Added viewport-fit=cover to index.html for device safe area handling",
+      "header": "Streamlined mobile layout with responsive logo, hidden secondary subtitle on mobile, and compact action buttons",
+      "workspace_tabs": "Compact workspace navigation with hidden description text on mobile, reclaiming >100px vertical space",
+      "banner": "Responsive padding, line-clamped secondary descriptions, compact reciter playback widget",
+      "surah_selector": "Truncated select with clean wrapping, preventing multi-row layout overflows",
+      "mushaf_page_board": "Reduced minimum height (200px on mobile vs 300px desktop) and responsive Arabic font sizes (text-xl to text-4xl) preventing word wrapping clipping",
+      "recitation_mic_console": "Touch-accessible 80px mic button with compact volume energy bar",
+      "pedagogical_feedback_terminal": "Responsive feedback container with minimum height scaled for small screens"
+    }
+  },
+  "onboarding_deployment_reconciliation": {
+    "component": "src/components/classroom/FirstUserGuideModal.tsx",
+    "integration_state": "INTEGRATED_IN_UNIFIED_CLASSROOM",
+    "local_test_state": "PASS",
+    "live_deployment_url": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+    "live_deployment_commit": "1b5b33b2cc45b4a4c86bcc7e4b3b7b375e081ddf",
+    "deployment_gap_explanation": "FirstUserGuideModal is present locally in the repository worktree and wired to UnifiedClassroomView.tsx, but has not yet been pushed to remote main branch for automated GitHub Pages build."
+  },
+  "scientific_governance_invariants": {
+    "absence_of_evidence_principle": "STRICTLY_ENFORCED",
+    "quran_source_text_integrity": "UNTOUCHED_AND_CANONICAL",
+    "onnx_model_weights": "UNTOUCHED_AND_CANONICAL",
+    "corpus_test_files": 0,
+    "test_partition_sealed": false,
+    "phase_17_evaluation_gate": "BLOCKED"
+  },
+  "overall_verdict": "RECITATION_GATE_REMEDIATED_AND_MOBILE_UX_HARDENED"
+}

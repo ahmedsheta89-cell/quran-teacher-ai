@@ -14,12 +14,14 @@ import { computeSha256 } from '../ai_language/LanguageSnapshot.ts';
 
 export class EventJournal {
   private readonly sessionId: string;
+  private readonly maxCapacity: number;
   private sequence: number = 0;
   private records: JournalRecord[] = [];
   private lastHash: string = 'GENESIS_EVENT_HASH_000000000000000000000000000000000000000000000000';
 
-  constructor(sessionId: string) {
+  constructor(sessionId: string, maxCapacity: number = 10000) {
     this.sessionId = sessionId;
+    this.maxCapacity = maxCapacity;
   }
 
   public getSessionId(): string {
@@ -55,6 +57,9 @@ export class EventJournal {
     });
 
     this.records.push(record);
+    if (this.records.length > this.maxCapacity) {
+      this.records.shift();
+    }
     this.lastHash = entryHash;
     return record;
   }
@@ -76,6 +81,10 @@ export class EventJournal {
     this.sequence = 0;
     this.records = [];
     this.lastHash = 'GENESIS_EVENT_HASH_000000000000000000000000000000000000000000000000';
+  }
+
+  public dispose(): void {
+    this.clear();
   }
 
   private sanitizeForJournal(obj: any): any {

@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "phase": "16.9.3",
+  "project": "Aya AI Quran Teacher / معلّم القرآن الرقمي",
+  "timestamp": "2026-10-08T22:50:00.000Z",
+  "auditor": "Principal Engineer + Release Engineer + Forensic QA Engineer",
+  "baseCommit": "1b5b33b2cc45b4a4c86bcc7e4b3b7b375e081ddf",
+  "releaseCommitSha": "7b68da7866d53bd278ee49fc5426a0423c27841c",
+  "branch": "main",
+  "remoteUrl": "https://github.com/ahmedsheta89-cell/quran-teacher-ai.git",
+  "liveDeploymentUrl": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+  "architecturalIntegrity": {
+    "advancementCallChain": "Audio evidence -> recognition -> RecitationErrorDecisionEngine -> RecitationAdvancementGate -> RealTimeSessionOrchestrator -> this.currentWordIndex += 1",
+    "gateAuthoritative": true,
+    "decisionEngineIndependentAdvancementAllowed": false,
+    "legacyPrototypeBypassAbsent": true,
+    "vadOnlyAdvancementAllowed": false,
+    "activeMutationSitesCount": 1,
+    "soleMutationSite": "src/domain/realtime_teacher/RealTimeSessionOrchestrator.ts:634"
+  },
+  "localBuild": {
+    "builder": "Vite 8.3.0 + Rolldown",
+    "buildTimestamp": "2026-10-08T22:40:22.253Z",
+    "primaryJsAsset": "assets/index-BBJM_60R.js",
+    "primaryJsSha256": "0691fe43a9ef34d5e4999dcd8e873ffc0f6174a8854dc5366910b141438469cc",
+    "primaryJsSizeBytes": 1527746,
+    "primaryCssAsset": "assets/index-BBOs3i7b.css",
+    "primaryCssSha256": "381da9ebee97659cf201df85c0f5a01fbf04bea2e18b4bc623f04ed28e585add",
+    "manifestPath": "public/build-manifest.json",
+    "status": "PRODUCTION_READY"
+  },
+  "liveBuild": {
+    "targetUrl": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+    "primaryJsAsset": "assets/index-_YGbahu_.js",
+    "primaryJsSha256": "97d48cd3baa6353c5dda049c67cad8db841cbea1a5a58d283a5bcdafd4e7c515",
+    "primaryJsSizeBytes": 1509902,
+    "status": "STALE_PRE_16_8"
+  },
+  "reconciliationOutcome": {
+    "assetMatch": false,
+    "localSha256": "0691fe43a9ef34d5e4999dcd8e873ffc0f6174a8854dc5366910b141438469cc",
+    "liveSha256": "97d48cd3baa6353c5dda049c67cad8db841cbea1a5a58d283a5bcdafd4e7c515",
+    "manifestExposedOnLive": false
+  },
+  "markerAudit": {
+    "local": {
+      "مقرأة معلّم القرآن الرقمي": true,
+      "أهلاً بك في منصة معلّم القرآن الرقمي الذكي لمساعدتك على مدارسة وتسميع القرآن الكريم": true,
+      "EXACT_NORMALIZED_MATCH: Observed tokens precisely match expected word": true,
+      "HUMMING_OR_NOISE_REJECTED": true,
+      "لم أتحقق من نطق الكلمة بوضوح. اقرأ بتؤدة وترتيل.": true,
+      "ADVANCEMENT_REQUESTED": true,
+      "ADVANCEMENT_APPROVED": true,
+      "ADVANCEMENT_COMMITTED": true,
+      "ADVANCEMENT_REJECTED": true,
+      "SCIENTIFICALLY_UNVALIDATED_PARTIAL_MATCH": true,
+      "Math.random() > 0.65": false
+    },
+    "live": {
+      "مقرأة معلّم القرآن الرقمي": false,
+      "أهلاً بك في منصة معلّم القرآن الرقمي الذكي لمساعدتك على مدارسة وتسميع القرآن الكريم": false,
+      "EXACT_NORMALIZED_MATCH: Observed tokens precisely match expected word": false,
+      "HUMMING_OR_NOISE_REJECTED": false,
+      "لم أتحقق من نطق الكلمة بوضوح. اقرأ بتؤدة وترتيل.": false,
+      "ADVANCEMENT_REQUESTED": false,
+      "ADVANCEMENT_APPROVED": false,
+      "ADVANCEMENT_COMMITTED": false,
+      "ADVANCEMENT_REJECTED": false,
+      "SCIENTIFICALLY_UNVALIDATED_PARTIAL_MATCH": false,
+      "Math.random() > 0.65": false
+    }
+  },
+  "verificationSuite": {
+    "npmTestPass": true,
+    "totalTests": 1180,
+    "passedTests": 1180,
+    "failedTests": 0,
+    "typeScriptLintPass": true,
+    "typeScriptErrorCount": 0,
+    "productionBuildPass": true,
+    "targetGateTestPass": true
+  },
+  "deploymentPipeline": {
+    "workflowFile": ".github/workflows/deploy.yml",
+    "trigger": "push to branches: [main]",
+    "pushStatus": "PUSH_BLOCKED_EXTERNAL_AUTHORITY",
+    "pipelineExecutionStatus": "DEPLOYMENT_PENDING_EXTERNAL_PIPELINE",
+    "reason": "Push to origin/main requires interactive developer authentication (PAT/SSH/GCM), preventing automated unattended push from agent sandbox."
+  },
+  "finalVerdict": "RELEASE_BLOCKED",
+  "stopCondition": "PUSH_BLOCKED_EXTERNAL_AUTHORITY",
+  "governingPrinciplesCompliance": {
+    "absenceOfEvidenceRule": "COMPLIANT: No positive acoustic judgment declared.",
+    "buildMatchesLiveRule": "COMPLIANT: Divergence acknowledged, release blocked until live matches release fingerprint.",
+    "corpusEvaluationPartition": "EMPTY (corpus/test/ has 0 files)",
+    "phase17Status": "BLOCKED",
+    "groundTruthStatus": "NOT_ESTABLISHED"
+  }
+}

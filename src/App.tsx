@@ -127,8 +127,8 @@ function AppContent() {
 
       {/* Primary Workspaces Navigation Grid */}
       <section className="bg-white border-b border-stone-200/80 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5">
             {masterWorkspaces.map((ws) => {
               const Icon = ws.icon;
               const active = activeTab === ws.id;
@@ -136,29 +136,29 @@ function AppContent() {
                 <button
                   key={ws.id}
                   onClick={() => setActiveTab(ws.id)}
-                  className={`p-3 rounded-2xl text-right transition-all flex flex-col justify-between border cursor-pointer active:scale-98 ${
+                  className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl text-right transition-all flex flex-col justify-between border cursor-pointer active:scale-98 ${
                     active
                       ? 'bg-gradient-to-l from-emerald-950 to-stone-900 text-white shadow-md border-emerald-900 ring-2 ring-emerald-600/30'
                       : 'bg-stone-50/80 hover:bg-stone-100 text-stone-800 border-stone-200/90 hover:border-emerald-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between w-full mb-1.5">
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                  <div className="flex items-center justify-between w-full mb-1 sm:mb-1.5">
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center ${
                       active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-stone-200 text-stone-700'
                     }`}>
-                      <Icon className="w-4 h-4" />
+                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${
                       active ? 'bg-white/10 text-emerald-200' : 'bg-stone-200/80 text-stone-600'
                     }`}>
                       {ws.badge}
                     </span>
                   </div>
                   <div>
-                    <h3 className={`font-bold text-xs ${active ? 'text-white' : 'text-stone-900'}`}>
+                    <h3 className={`font-bold text-2xs sm:text-xs ${active ? 'text-white' : 'text-stone-900'}`}>
                       {ws.title}
                     </h3>
-                    <p className={`text-[11px] truncate mt-0.5 ${active ? 'text-stone-300' : 'text-stone-500'}`}>
+                    <p className={`hidden sm:block text-[11px] truncate mt-0.5 ${active ? 'text-stone-300' : 'text-stone-500'}`}>
                       {ws.desc}
                     </p>
                   </div>

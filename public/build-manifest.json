@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "project": "quran-teacher-ai",
+  "phase": "16.9.3",
+  "packageVersion": "0.0.0",
+  "deploymentTarget": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+  "sourceFingerprint": {
+    "gitCommitSha": "7b68da7866d53bd278ee49fc5426a0423c27841c",
+    "branch": "main",
+    "canonicalQuranDatasetHash": "9a9ec96cba5e91e6b9a896d888cf338ea8fbb77f59aa59d29ccbc9f6fd195cc4",
+    "tajweedKbChecksumSha256": "83f509939e6a0d2f09459ca2a50a7c645ec77fbdb5142a78fcae568f6a008ce8",
+    "officialAcousticModelSha256": "31755836528da336a6192121cd7bc82cb41752dddb65566fd000b89c8686da6b"
+  },
+  "buildMetadata": {
+    "timestamp": "2026-10-08T23:07:16.468Z",
+    "builder": "Vite 8.3.0 + Rolldown",
+    "nodeVersion": "v24.13.0",
+    "platform": "win32",
+    "arch": "x64",
+    "primaryJsAsset": {
+      "filename": "index-BBJM_60R.js",
+      "relativePath": "assets/index-BBJM_60R.js",
+      "sha256": "0691fe43a9ef34d5e4999dcd8e873ffc0f6174a8854dc5366910b141438469cc"
+    },
+    "primaryCssAsset": {
+      "filename": "index-BBOs3i7b.css",
+      "relativePath": "assets/index-BBOs3i7b.css",
+      "sha256": "381da9ebee97659cf201df85c0f5a01fbf04bea2e18b4bc623f04ed28e585add"
+    }
+  },
+  "reconciliationStatus": {
+    "localBuildStatus": "PRODUCTION_READY",
+    "liveDeploymentStatus": "DEPLOYMENT_PENDING_EXTERNAL_PIPELINE",
+    "liveAssetDiscrepancy": {
+      "liveJsAsset": "assets/index-_YGbahu_.js",
+      "liveJsSha256": "97d48cd3baa6353c5dda049c67cad8db841cbea1a5a58d283a5bcdafd4e7c515",
+      "localJsAsset": "assets/index-BBJM_60R.js",
+      "localJsSha256": "0691fe43a9ef34d5e4999dcd8e873ffc0f6174a8854dc5366910b141438469cc",
+      "isIdentical": false
+    }
+  },
+  "releaseStatus": "RELEASE_BLOCKED_PENDING_DEPLOYMENT"
+}

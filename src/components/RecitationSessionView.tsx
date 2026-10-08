@@ -200,13 +200,9 @@ export const RecitationSessionView: React.FC = () => {
     const vadSeg = vadRef.current.processChunk(chunk.pcmData, chunk.timestampMs, chunk.sampleRateHz);
     setCurrentVadState(vadSeg.state);
 
-    // Simulate steady recitation progress across words
-    setActiveWordIndex((prev) => {
-      if (vadSeg.state === VadActivityState.SPEECH && Math.random() > 0.65) {
-        return Math.min(allSessionWords.length - 1, prev + 1);
-      }
-      return prev;
-    });
+    // PHASE 16.9.1 ZERO-BYPASS ENFORCEMENT:
+    // Eliminated un-gated VAD + Math.random() advancement bypass.
+    // Word cursor advancement requires verified phonetic evidence from RecitationAdvancementGate.
 
     // Run alignment periodically
     if (chunk.sequenceNumber % 4 === 0) {

@@ -25,6 +25,7 @@ pnpm-debug.log*
 *.temp
 .cache/
 .vite/
+scratch/
 
 # OS and Editor artifacts
 .DS_Store
@@ -36,3 +37,4 @@ Thumbs.db
 
 # Large / Unused binary artifacts
 models/test_whisper/
+*.onnx

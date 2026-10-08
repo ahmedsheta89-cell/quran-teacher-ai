@@ -17,6 +17,25 @@ export async function computeSha256(text: string): Promise<string> {
   return computeSha256Sync(text);
 }
 
+export async function computeSha256Buffer(buffer: ArrayBuffer | Uint8Array): Promise<string> {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes as unknown as BufferSource);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Node environment fallback
+  if (typeof process !== 'undefined' && typeof process.versions?.node !== 'undefined') {
+    try {
+      const nodeCrypto = await import('crypto');
+      return nodeCrypto.createHash('sha256').update(Buffer.from(bytes)).digest('hex');
+    } catch (_) {}
+  }
+
+  return sha256Bytes(bytes);
+}
+
 export function computeSha256Sync(text: string): string {
   const bytes = utf8Encode(text);
   return sha256Bytes(bytes);

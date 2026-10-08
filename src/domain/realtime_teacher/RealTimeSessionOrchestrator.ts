@@ -37,6 +37,7 @@ import {
   TAJWEED_KB_CHECKSUM_SHA256,
   OFFICIAL_MODEL_HASH,
 } from '../recitation/RecitationErrorDecisionEngine.ts';
+import { RecitationAdvancementGate } from '../recitation/RecitationAdvancementGate.ts';
 import {
   RecitationDecisionState,
   RecitationDecisionInput,
@@ -178,6 +179,10 @@ export class RealTimeSessionOrchestrator {
 
   public getAyahWords(): readonly RealTimeRecitationWordStatus[] {
     return Object.freeze([...this.ayahWords]);
+  }
+
+  public getCurrentWordIndex(): number {
+    return this.currentWordIndex;
   }
 
   public getProgressRecords(): readonly VerifiedProgressRecord[] {
@@ -409,7 +414,16 @@ export class RealTimeSessionOrchestrator {
     evidenceTimestampMs: number = Date.now()
   ): Promise<RealTimeFeedbackDelivery | null> {
     const startTotalTime = Date.now();
-    this.eventSequence += 1;
+    // A. Session Active Guard (Section 11, 40)
+    const state = this.stateMachine.getState();
+    if (
+      state === RealTimeTeacherSessionState.PAUSED ||
+      state === RealTimeTeacherSessionState.ENDED ||
+      state === RealTimeTeacherSessionState.IDLE ||
+      state === RealTimeTeacherSessionState.ERROR_SAFE_STATE
+    ) {
+      return null;
+    }
 
     // A. Stale Event & Out-of-Order Check (Section 11, 12)
     if (evidenceTimestampMs < Date.now() - CANONICAL_TIMING_POLICY.staleEventThresholdMs) {
@@ -567,11 +581,44 @@ export class RealTimeSessionOrchestrator {
       confidence: evidence.acousticConfidence ?? 0.95,
     });
 
-    // F. Branching on Decision State
-    if (
+    this.eventJournal.recordEvent('ADVANCEMENT_REQUESTED', 'ORCHESTRATOR', 'GATE', {
+      targetWordIndex,
+      currentWordIndex: this.currentWordIndex,
+      expectedToken: evidence.expectedToken,
+      observedToken: evidence.observedToken,
+    });
+
+    // Authoritative Recitation Advancement Gate (Phase 16.9R / Phase 16.9.3)
+    const observedTokens: string[] = evidence.observedToken
+      ? [evidence.observedToken]
+      : [];
+
+    const activeSessionId = this.config?.sessionId || 'active-session';
+    const gateEvaluation = RecitationAdvancementGate.evaluateAdvancement({
+      sessionId: activeSessionId,
+      activeSessionId,
+      expectedWordIndex: targetWordIndex,
+      currentWordIndex: this.currentWordIndex,
+      expectedToken: evidence.expectedToken,
+      observedTokens,
+      acousticConfidence: evidence.acousticConfidence ?? 0.95,
+      snrDb,
+      isStudentSpeaking: true,
+    });
+
+    const isDecisionMatch =
       decisionOutput.finalStatus === RecitationDecisionState.MATCH ||
-      decisionOutput.finalStatus === RecitationDecisionState.CONTINUE
-    ) {
+      decisionOutput.finalStatus === RecitationDecisionState.CONTINUE;
+
+    // F. Branching on Decision State & Authoritative Gate
+    if (isDecisionMatch && gateEvaluation.canAdvance) {
+      this.eventJournal.recordEvent('ADVANCEMENT_APPROVED', 'GATE', 'ORCHESTRATOR', {
+        targetWordIndex,
+        finalStatus: decisionOutput.finalStatus,
+        gateStatus: gateEvaluation.status,
+        gateReason: gateEvaluation.reason,
+      });
+
       // SUCCESS CASE
       const evHash = computeSha256(`${evidence.ayahId}:${evidence.wordIndex}:${evidence.expectedToken}`);
       this.handleWordConfirmation(targetWordIndex, evHash);
@@ -583,10 +630,17 @@ export class RealTimeSessionOrchestrator {
 
       // Advance to next word or complete ayah (Section 30)
       if (this.currentWordIndex + 1 < this.ayahWords.length) {
+        const prevIndex = this.currentWordIndex;
         this.currentWordIndex += 1;
         this.currentWordRetryCount = 0;
         this.activeRepeatWordIndex = null;
         this.ayahWords[this.currentWordIndex].visualState = WordVisualState.CURRENT;
+
+        this.eventJournal.recordEvent('ADVANCEMENT_COMMITTED', 'ORCHESTRATOR', 'STATE', {
+          fromWordIndex: prevIndex,
+          toWordIndex: this.currentWordIndex,
+        });
+
         this.stateMachine.transition(
           RealTimeTeacherSessionState.LISTENING,
           'INITIALIZATION_COMPLETED',
@@ -597,6 +651,15 @@ export class RealTimeSessionOrchestrator {
         this.handleAyahCompletion();
       }
       return null;
+    } else {
+      this.eventJournal.recordEvent('ADVANCEMENT_REJECTED', 'GATE', 'ORCHESTRATOR', {
+        targetWordIndex,
+        finalStatus: decisionOutput.finalStatus,
+        gateCanAdvance: gateEvaluation.canAdvance,
+        gateStatus: gateEvaluation.status,
+        gateReason: gateEvaluation.reason,
+        decisionReason: decisionOutput.auditTrail?.decisionReason,
+      });
     }
 
     // Inconclusive or Listen-Only: silent continuation
@@ -965,5 +1028,50 @@ export class RealTimeSessionOrchestrator {
       default:
         return LearningMode.TAJWEED_PRACTICE;
     }
+  }
+
+  /**
+   * Explicitly cancels and clears the recitation session.
+   * Clears streaming caches, feedback caches, listeners, and resets to IDLE.
+   * Guarantees zero session state leakage into subsequent sessions.
+   */
+  public cancelSession(): void {
+    this.voiceProvider.stop();
+    this.turnTakingDetector.setTeacherSpeaking(false);
+    this.resetStreamingCache('Session explicitly canceled');
+    this.feedbackCache.clear();
+    this.lastDeliveredFeedback = null;
+    this.activeRepeatWordIndex = null;
+    this.currentWordRetryCount = 0;
+    this.currentWordIndex = 0;
+    this.eventJournal.clear();
+    this.progressRecords = [];
+    if (
+      this.stateMachine.getState() !== RealTimeTeacherSessionState.IDLE &&
+      this.stateMachine.getState() !== RealTimeTeacherSessionState.ENDED
+    ) {
+      this.stateMachine.transition(
+        RealTimeTeacherSessionState.ENDED,
+        'END_REQUESTED',
+        'Session explicitly canceled'
+      );
+    }
+    if (this.stateMachine.getState() === RealTimeTeacherSessionState.ENDED) {
+      this.stateMachine.transition(
+        RealTimeTeacherSessionState.IDLE,
+        'RESET_TO_IDLE',
+        'Reset session to idle'
+      );
+    }
+  }
+
+  /**
+   * Releases and disposes orchestrator resources.
+   */
+  public dispose(): void {
+    this.cancelSession();
+    this.stateListeners = [];
+    this.feedbackListeners = [];
+    this.wordStatusListeners = [];
   }
 }

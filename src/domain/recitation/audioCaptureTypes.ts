@@ -7,6 +7,11 @@
 export interface AudioStreamMetadata {
   sampleRateHz: number;
   channels: number;
+  channelCount?: number;
+  requestedSampleRate?: number;
+  actualTrackSampleRate?: number;
+  audioContextSampleRate?: number;
+  targetSampleRate?: number;
   bitDepth?: number;
   durationMs: number;
   timestampMs: number;

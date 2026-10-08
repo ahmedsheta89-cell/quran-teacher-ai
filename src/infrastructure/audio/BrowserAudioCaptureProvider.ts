@@ -11,6 +11,7 @@ import {
   AudioStreamMetadata,
   AudioChunk,
 } from '../../domain/recitation/audioCaptureTypes.ts';
+import { resamplePcmTo16k } from './resampling/AudioResampler.ts';
 
 export class BrowserAudioCaptureProvider implements IAudioCaptureProvider {
   private state: AudioCaptureState = AudioCaptureState.UNINITIALIZED;
@@ -72,9 +73,15 @@ export class BrowserAudioCaptureProvider implements IAudioCaptureProvider {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       this.audioContext = new AudioCtx({ sampleRate: 16000 });
 
+      const contextSampleRate = this.audioContext.sampleRate;
       this.currentMetadata = {
-        sampleRateHz: this.audioContext.sampleRate,
+        sampleRateHz: 16000,
         channels: 1,
+        channelCount: 1,
+        requestedSampleRate: 16000,
+        actualTrackSampleRate: settings.sampleRate || contextSampleRate,
+        audioContextSampleRate: contextSampleRate,
+        targetSampleRate: 16000,
         bitDepth: 16,
         durationMs: 0,
         timestampMs: Date.now(),
@@ -91,17 +98,19 @@ export class BrowserAudioCaptureProvider implements IAudioCaptureProvider {
         if (this.state !== AudioCaptureState.RECORDING) return;
 
         const inputBuffer = e.inputBuffer.getChannelData(0);
-        const pcmCopy = new Float32Array(inputBuffer.length);
-        pcmCopy.set(inputBuffer);
+        const pcmCopy =
+          contextSampleRate === 16000
+            ? new Float32Array(inputBuffer)
+            : resamplePcmTo16k(inputBuffer, contextSampleRate, 'BANDLIMITED_SINC');
 
-        const chunkDurationMs = (inputBuffer.length / this.audioContext!.sampleRate) * 1000;
+        const chunkDurationMs = (pcmCopy.length / 16000) * 1000;
         const chunk: AudioChunk = {
           sequenceNumber: this.sequenceNumber++,
           sessionId: this.sessionId,
           timestampMs: Date.now(),
           durationMs: chunkDurationMs,
           pcmData: pcmCopy,
-          sampleRateHz: this.audioContext!.sampleRate,
+          sampleRateHz: 16000,
           channels: 1,
           isFinal: false,
         };

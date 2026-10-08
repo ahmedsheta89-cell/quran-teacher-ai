@@ -11,6 +11,7 @@ import {
   AudioStreamMetadata,
   IAudioCaptureProvider,
 } from '../../domain/recitation/audioCaptureTypes.ts';
+import { resamplePcmTo16k } from './resampling/AudioResampler.ts';
 
 export class WebAudioCaptureProvider implements IAudioCaptureProvider {
   private state: AudioCaptureState = AudioCaptureState.UNINITIALIZED;
@@ -79,8 +80,13 @@ export class WebAudioCaptureProvider implements IAudioCaptureProvider {
 
       const sampleRate = this.audioContext.sampleRate;
       this.metadata = {
-        sampleRateHz: sampleRate,
+        sampleRateHz: 16000,
         channels: 1,
+        channelCount: 1,
+        requestedSampleRate: 16000,
+        actualTrackSampleRate: settings.sampleRate || sampleRate,
+        audioContextSampleRate: sampleRate,
+        targetSampleRate: 16000,
         bitDepth: 16,
         durationMs: 0,
         timestampMs: Date.now(),
@@ -101,9 +107,13 @@ export class WebAudioCaptureProvider implements IAudioCaptureProvider {
         if (this.state !== AudioCaptureState.RECORDING) return;
 
         const inputBuffer = e.inputBuffer.getChannelData(0);
-        // Copy to detached array to prevent audio driver race condition
-        const pcmData = new Float32Array(inputBuffer);
-        const durationMs = Math.round((pcmData.length / sampleRate) * 1000);
+        // Resample deterministic to 16kHz if hardware sampleRate !== 16000
+        const pcmData =
+          sampleRate === 16000
+            ? new Float32Array(inputBuffer)
+            : resamplePcmTo16k(inputBuffer, sampleRate, 'BANDLIMITED_SINC');
+
+        const durationMs = Math.round((pcmData.length / 16000) * 1000);
         const timestampMs = Date.now() - this.startTimestampMs;
 
         this.sequenceCounter++;
@@ -114,7 +124,7 @@ export class WebAudioCaptureProvider implements IAudioCaptureProvider {
           timestampMs,
           durationMs,
           pcmData,
-          sampleRateHz: sampleRate,
+          sampleRateHz: 16000,
           channels: 1,
           isFinal: false,
         };

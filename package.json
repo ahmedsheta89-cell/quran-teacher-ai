@@ -7,10 +7,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate_build_manifest.js",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "test": "npx tsx src/tests/run_all_tests.ts && npx vitest run src/tests/Phase7cRealTimeTeacherInteraction.test.ts && npx vitest run src/tests/Phase7dMemorizationIntelligence.test.ts && npx vitest run src/tests/Phase8aStudentIdentityArchitecture.test.ts && npx vitest run src/tests/Phase8bPersistentLearningStore.test.ts && npx vitest run src/tests/Phase8cOfflineFirstSync.test.ts && npx vitest run src/tests/Phase8dStudentProgressUX.test.ts",
+    "test": "npx tsx src/tests/run_all_tests.ts && npx vitest run src/tests/Phase7cRealTimeTeacherInteraction.test.ts && npx vitest run src/tests/Phase7dMemorizationIntelligence.test.ts && npx vitest run src/tests/Phase8aStudentIdentityArchitecture.test.ts && npx vitest run src/tests/Phase8bPersistentLearningStore.test.ts && npx vitest run src/tests/Phase8cOfflineFirstSync.test.ts && npx vitest run src/tests/Phase8dStudentProgressUX.test.ts && npx vitest run src/tests/Phase12_1_FoundationStressAudit.test.ts && npx vitest run src/tests/Phase12_2_RealModelRuntimeAudit.test.ts && npx vitest run src/tests/Phase16_9_RecitationAdvancementGate.test.ts && npx vitest run src/tests/Phase16_9_1_IntegrationAdvancementGate.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "onnxruntime-node": "^1.20.1",
+    "onnxruntime-web": "^1.30.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^8.3.0"
