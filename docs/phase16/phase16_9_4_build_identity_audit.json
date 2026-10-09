@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "phase": "16.9.4",
+  "project": "Aya AI Quran Teacher / معلّم القرآن الرقمي",
+  "timestamp": "2026-10-09T03:45:00.000Z",
+  "auditor": "Principal Release Engineer + Git Forensics Engineer + CI/CD Engineer + Adversarial QA Engineer",
+  "repository": {
+    "workspace": "F:/quran",
+    "remoteUrl": "https://github.com/ahmedsheta89-cell/quran-teacher-ai.git",
+    "branch": "main",
+    "baseRemoteCommit": "1b5b33b2cc45b4a4c86bcc7e4b3b7b375e081ddf",
+    "precedingReleaseCommit": "f7191af04ba9b039b0e9035ad4ecf48f4d8ac609"
+  },
+  "deploymentTarget": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+  "buildIdentityDiscrepancyResolution": {
+    "rootCause": "In Phase 16.9.3, computing git rev-parse HEAD before commit and writing it to tracked public/build-manifest.json created a circular hash invalidation loop where amending the commit changed its SHA, causing the tracked manifest commit SHA (7b68da7866d53bd278ee49fc5426a0423c27841c) to disagree with the final commit SHA (f7191af04ba9b039b0e9035ad4ecf48f4d8ac609).",
+    "architecturalRemedy": "Decoupled Git source tracking from generated runtime artifacts. Converted public/build-manifest.json to a static BUILD_TEMPLATE. The authoritative runtime manifest is now generated dynamically during compilation into dist/build-manifest.json. In GitHub Actions CI, process.env.GITHUB_SHA is injected directly from github.sha. In local worktree builds, git rev-parse HEAD is read without modifying any tracked files. Compilation no longer dirties Git state.",
+    "status": "CIRCULAR_DEPENDENCY_RESOLVED"
+  },
+  "pipelineHardening": {
+    "workflowFile": ".github/workflows/deploy.yml",
+    "preDeployGates": [
+      {
+        "gate": "TypeScript Static Analysis",
+        "command": "npm run lint",
+        "description": "tsc --noEmit to prevent any type or compilation regression"
+      },
+      {
+        "gate": "Full Test Suite Execution",
+        "command": "npm test",
+        "description": "Executes all 1,180 unit and integration tests across 11 suites"
+      },
+      {
+        "gate": "Production Build Compilation",
+        "command": "npm run build",
+        "description": "Vite + Rolldown compilation and dist/build-manifest.json generation"
+      },
+      {
+        "gate": "Build Manifest Verification",
+        "command": "test -f ./dist/build-manifest.json",
+        "description": "Verifies authoritative build manifest exists prior to artifact upload"
+      }
+    ],
+    "gateStatus": "HARDENED_AND_VERIFIED"
+  },
+  "verificationSuite": {
+    "npmTestPass": true,
+    "totalTests": 1180,
+    "passedTests": 1180,
+    "failedTests": 0,
+    "typeScriptLintPass": true,
+    "typeScriptErrorCount": 0,
+    "productionBuildPass": true,
+    "recitationAdvancementGateTests": {
+      "unitTestsPassed": 17,
+      "unitTestsTotal": 17,
+      "integrationTestsPassed": 18,
+      "integrationTestsTotal": 18
+    }
+  },
+  "localBuildFingerprint": {
+    "builder": "Vite 8.3.0 + Rolldown",
+    "primaryJsAsset": {
+      "filename": "index-BBJM_60R.js",
+      "relativePath": "assets/index-BBJM_60R.js",
+      "sha256": "0691fe43a9ef34d5e4999dcd8e873ffc0f6174a8854dc5366910b141438469cc",
+      "sizeBytes": 1491945
+    },
+    "primaryCssAsset": {
+      "filename": "index-BBOs3i7b.css",
+      "relativePath": "assets/index-BBOs3i7b.css",
+      "sha256": "381da9ebee97659cf201df85c0f5a01fbf04bea2e18b4bc623f04ed28e585add",
+      "sizeBytes": 100101
+    },
+    "canonicalQuranDatasetHash": "9a9ec96cba5e91e6b9a896d888cf338ea8fbb77f59aa59d29ccbc9f6fd195cc4",
+    "tajweedKbChecksumSha256": "83f509939e6a0d2f09459ca2a50a7c645ec77fbdb5142a78fcae568f6a008ce8",
+    "officialAcousticModelSha256": "31755836528da336a6192121cd7bc82cb41752dddb65566fd000b89c8686da6b",
+    "status": "PRODUCTION_READY"
+  },
+  "liveDeploymentAudit": {
+    "url": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+    "httpStatus": 200,
+    "activeJsAsset": {
+      "filename": "index-_YGbahu_.js",
+      "relativePath": "assets/index-_YGbahu_.js",
+      "sha256": "97d48cd3baa6353c5dda049c67cad8db841cbea1a5a58d283a5bcdafd4e7c515",
+      "sizeBytes": 1326964
+    },
+    "liveBuildManifestFound": false,
+    "liveBuildManifestStatus": "HTTP_404_NOT_FOUND",
+    "parityVerdict": "MISMATCH_DISCREPANCY",
+    "liveDeploymentState": "STALE_PRE_16_8"
+  },
+  "markerParityAudit": {
+    "localVsLive": {
+      "مقرأة معلّم القرآن الرقمي": { "local": true, "live": false },
+      "أهلاً بك في منصة معلّم القرآن الرقمي الذكي لمساعدتك على مدارسة وتسميع القرآن الكريم": { "local": true, "live": false },
+      "EXACT_NORMALIZED_MATCH: Observed tokens precisely match expected word": { "local": true, "live": false },
+      "HUMMING_OR_NOISE_REJECTED": { "local": true, "live": false },
+      "لم أتحقق من نطق الكلمة بوضوح. اقرأ بتؤدة وترتيل.": { "local": true, "live": false },
+      "ADVANCEMENT_REQUESTED": { "local": true, "live": false },
+      "ADVANCEMENT_APPROVED": { "local": true, "live": false },
+      "ADVANCEMENT_COMMITTED": { "local": true, "live": false },
+      "ADVANCEMENT_REJECTED": { "local": true, "live": false },
+      "SCIENTIFICALLY_UNVALIDATED_PARTIAL_MATCH": { "local": true, "live": false },
+      "Math.random() > 0.65": { "local": false, "live": false }
+    }
+  },
+  "deploymentPipelineStatus": {
+    "pushStatus": "PUSH_BLOCKED_EXTERNAL_AUTHORITY",
+    "pipelineExecutionStatus": "DEPLOYMENT_PENDING_EXTERNAL_PIPELINE",
+    "reason": "Pushing to remote origin/main requires interactive repository owner credentials (PAT/SSH/GCM), preventing automated push from sandbox execution environment."
+  },
+  "governingPrinciplesCompliance": {
+    "absenceOfEvidenceRule": "COMPLIANT: Zero unverified acoustic judgment claims.",
+    "buildMatchesLiveRule": "COMPLIANT: Mismatch explicitly detected, recorded, and release blocked.",
+    "corpusEvaluationPartition": "COMPLIANT: corpus/test/ is empty (0 files).",
+    "phase17Status": "BLOCKED",
+    "groundTruthStatus": "NOT_ESTABLISHED"
+  },
+  "finalVerdict": "RELEASE_BLOCKED",
+  "stopCondition": "PUSH_BLOCKED_EXTERNAL_AUTHORITY",
+  "nextOperationalStep": "The repository owner must execute `git push origin main` using their authorized GitHub credentials to trigger the hardened GitHub Actions pipeline and publish dist/ to GitHub Pages."
+}

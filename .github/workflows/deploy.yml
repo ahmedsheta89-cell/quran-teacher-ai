@@ -30,8 +30,20 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Build project
+      - name: Run verification test suite
+        run: npm test
+
+      - name: Run TypeScript type check
+        run: npm run lint
+
+      - name: Build project and generate authoritative manifest
         run: npm run build
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+
+      - name: Verify build manifest exists
+        run: test -f ./dist/build-manifest.json
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
