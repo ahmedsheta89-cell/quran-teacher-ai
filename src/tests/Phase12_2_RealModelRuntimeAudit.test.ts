@@ -29,9 +29,11 @@ import { KaldiFbankExtractor } from '../infrastructure/acoustic/KaldiFbankExtrac
 import { AuditableCtcDecoder } from '../domain/recitation/AuditableCtcDecoder.ts';
 import { OnnxAcousticModelRunner } from '../infrastructure/acoustic/OnnxAcousticModelRunner.ts';
 
-describe('PHASE 12.2 — REAL MODEL RUNTIME INTEGRATION & E2E CERTIFICATION', () => {
-  const modelPath = path.resolve('models/saboorhsn/quran-stt-int8.onnx');
-  const tokensPath = path.resolve('models/saboorhsn/tokens.txt');
+const modelPath = path.resolve('models/saboorhsn/quran-stt-int8.onnx');
+const tokensPath = path.resolve('models/saboorhsn/tokens.txt');
+const hasLocalModel = fs.existsSync(modelPath);
+
+describe.skipIf(!hasLocalModel)('PHASE 12.2 — REAL MODEL RUNTIME INTEGRATION & E2E CERTIFICATION', () => {
 
   // --------------------------------------------------------------------------
   // CLUSTER 1: Model Artifact Cryptographic & Byte-Level Integrity
