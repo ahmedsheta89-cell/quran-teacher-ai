@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MandatoryQualityGateChecklist",
+  "standardVersion": "1.0.0-PROD-GATE",
+  "lifecycleChecklist": {
+    "1_system_analysis": {
+      "dependencyMappingCompleted": true,
+      "impactRadiusAudited": true,
+      "backwardCompatibilityVerified": true
+    },
+    "2_acceptance_criteria": {
+      "measurableCriteriaDefined": true,
+      "negativeAndEdgeCasesCovered": true
+    },
+    "3_test_design": {
+      "unitTestsPlanned": true,
+      "integrationTestsPlanned": true,
+      "regressionTestsPlanned": true,
+      "securityTestsPlanned": true,
+      "typeAndBuildChecksPlanned": true
+    },
+    "4_implementation": {
+      "minimalSafeScope": true,
+      "noArchitectureRegressions": true,
+      "zeroSyntheticFaking": true
+    },
+    "5_full_system_validation": {
+      "dataIntegrityVerified": true,
+      "contractFidelityPreserved": true,
+      "offlineAndStateResilience": true,
+      "errorHandlingGraceful": true
+    },
+    "6_remediation_loop": {
+      "rootCauseIsolated": true,
+      "noFlakyTestsSuppressed": true,
+      "reTestExecutedToGreen": true
+    },
+    "7_verdict_declaration": {
+      "status": "PASS_WITH_BLOCKERS",
+      "validStatuses": ["PASS", "PASS_WITH_BLOCKERS", "FAIL"],
+      "blockersDocumentedWithEvidence": true
+    }
+  }
+}
