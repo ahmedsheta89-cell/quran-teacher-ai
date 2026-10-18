@@ -34,6 +34,9 @@ export const MasteryCertificateModal: React.FC<MasteryCertificateModalProps> = (
   const certificateId = `QUR-CERT-${surahNumber}-${Math.floor(100000 + Math.random() * 900000)}`;
 
   useEffect(() => {
+    // Only persist certificate if student has achieved verified mastery threshold (>= 80%)
+    if (accuracyScore < 80) return;
+
     saveCertificateToFirestore({
       certificateId,
       studentName,
@@ -162,19 +165,19 @@ export const MasteryCertificateModal: React.FC<MasteryCertificateModalProps> = (
 
               {/* Achievement Text */}
               <p className="text-sm sm:text-base text-stone-700 leading-relaxed px-4">
-                قد أتمّ بحمد الله وتوفيقه تسميع وضبط وتجويد <span className="font-bold text-emerald-900 text-base sm:text-lg">{surahName}</span> كاملةً، وتلاوتها عن ظهر قلب برواية <span className="font-bold text-stone-900">حفص عن عاصم الكوفي من طريق الشاطبية</span>، بمطابقة تامة لأصول الأداء والوقف والابتداء مع مراجعة دقيقة لمخارج الحروف وصفاتها.
+                قد أتمّ بحمد الله وتوفيقه تسميع وضبط كلمات الآيات المقررة من <span className="font-bold text-emerald-900 text-base sm:text-lg">{surahName}</span>، بمطابقة تامة لمصحف المدينة المنورة برواية <span className="font-bold text-stone-900">حفص عن عاصم من طريق الشاطبية</span>، مع التنبيه إلى أن الإجازة التجويدية التخصصية تتطلب المشافهة والعرض على المشايخ المسندين.
               </p>
 
               {/* Scores Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 my-6 py-4 border-y border-amber-200/80 bg-[#f9f5e9]/60 rounded-xl px-4">
                 <div className="text-center">
-                  <div className="text-xs text-stone-500 font-medium">درجة الحفظ والاستحضار</div>
+                  <div className="text-xs text-stone-500 font-medium">نسبة الكلمات المكتملة</div>
                   <div className="text-xl sm:text-2xl font-black text-emerald-900 font-mono mt-0.5">
                     {accuracyScore}%
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs text-stone-500 font-medium">تحقيق أحكام التجويد</div>
+                  <div className="text-xs text-stone-500 font-medium">مؤشر الضبط اللفظي</div>
                   <div className="text-xl sm:text-2xl font-black text-amber-900 font-mono mt-0.5">
                     {tajweedScore}%
                   </div>

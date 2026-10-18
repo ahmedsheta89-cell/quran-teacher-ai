@@ -438,7 +438,9 @@ export async function recordRecitationSessionToFirestore(session: {
 }
 
 /**
- * Save Mastery Certificate to Firestore
+ * Save Mastery Certificate to Firestore (Two-Tier Architecture)
+ * 1. Public Verification Record: /public_certificates/{certificateId} (No private userId)
+ * 2. Private Certificate Record: /users/{userId}/certificates/{certificateId} & /certificates/{certificateId}
  */
 export async function saveCertificateToFirestore(cert: {
   certificateId: string;
@@ -449,16 +451,54 @@ export async function saveCertificateToFirestore(cert: {
   verificationHash: string;
 }): Promise<void> {
   const uid = getActiveUserId();
-  const path = `certificates/${cert.certificateId}`;
+  const issuedAt = new Date().toISOString();
+
   try {
-    const certRef = doc(db, 'certificates', cert.certificateId);
-    await setDoc(certRef, {
-      ...cert,
-      userId: uid,
-      issuedAt: new Date().toISOString(),
+    // 1. Minimal Public Verification Record (NO userId included!)
+    const publicCertRef = doc(db, 'public_certificates', cert.certificateId);
+    await setDoc(publicCertRef, {
+      certificateId: cert.certificateId,
+      studentName: cert.studentName,
+      surahNumber: cert.surahNumber,
+      surahName: cert.surahName,
+      accuracyScore: cert.accuracyScore,
+      verificationHash: cert.verificationHash,
+      issuedAt,
     });
+
+    // 2. Private Full Certificate (Only if authenticated)
+    if (uid) {
+      const userCertRef = doc(db, 'users', uid, 'certificates', cert.certificateId);
+      await setDoc(userCertRef, {
+        ...cert,
+        userId: uid,
+        issuedAt,
+      });
+
+      // Also maintain legacy record for backward compatibility
+      const legacyRef = doc(db, 'certificates', cert.certificateId);
+      await setDoc(legacyRef, {
+        ...cert,
+        userId: uid,
+        issuedAt,
+      });
+    }
   } catch (err) {
     console.warn('Could not save certificate to Firestore:', err);
+  }
+}
+
+/**
+ * Retrieve a Public Mastery Certificate for verification (Minimal fields, zero private data)
+ */
+export async function getPublicCertificate(certificateId: string): Promise<any | null> {
+  try {
+    const certRef = doc(db, 'public_certificates', certificateId);
+    const snap = await getDoc(certRef);
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    console.warn('Could not fetch public certificate:', err);
+    return null;
   }
 }
 

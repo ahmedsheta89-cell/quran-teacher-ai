@@ -1,0 +1,157 @@
+{
+  "auditMetadata": {
+    "phase": "16.9.26",
+    "timestamp": "2026-10-17T01:15:00+03:00",
+    "workspace": "F:\\quran",
+    "gitBaseline": {
+      "commit": "bcff7fceffe7626f931a6510361386bac2902b19",
+      "branch": "main",
+      "trackedModifiedFilesCount": 9,
+      "trackedModifiedFiles": [
+        "firestore.rules",
+        "package-lock.json",
+        "package.json",
+        "src/App.tsx",
+        "src/components/StudentProgressDashboard.tsx",
+        "src/components/classroom/MasteryCertificateModal.tsx",
+        "src/components/classroom/RecitationReportModal.tsx",
+        "src/components/classroom/UnifiedClassroomView.tsx",
+        "src/infrastructure/firebase/firebaseClient.ts"
+      ]
+    },
+    "backupAudit": {
+      "primaryBackup": "F:\\quran_pre_release_backups\\backup_20261017_phase16_9_25",
+      "primaryBackupStatus": "INCOMPLETE_7_FILES",
+      "missingInPrimaryBackup": [
+        "src/components/classroom/RecitationReportModal.tsx",
+        "src/tests/Phase16_9_25_ScoringBoundaryMatrix.test.ts",
+        "docs/phase16/PHASE16_9_25_BROWSER_MICROPHONE_ACCEPTANCE_REPORT.md",
+        "docs/phase16/phase16_9_25_browser_microphone_acceptance.json"
+      ],
+      "supplementalBackup": "F:\\quran_pre_release_backups\\backup_20261017_phase16_9_26_supplemental",
+      "supplementalBackupStatus": "VERIFIED_COMPLETE_12_FILES"
+    }
+  },
+  "verificationSuites": {
+    "typeScriptLint": {
+      "command": "npm run lint",
+      "detected": "Entire codebase (tsc --noEmit)",
+      "passed": "Clean (0 errors)",
+      "failed": 0,
+      "exitCode": 0,
+      "independent": true
+    },
+    "productionBuild": {
+      "command": "npm run build",
+      "detected": "Vite production bundle + manifest generation",
+      "passed": "1824 modules transformed, built in 2.93s",
+      "failed": 0,
+      "exitCode": 0,
+      "independent": true
+    },
+    "firestoreSecurityRules": {
+      "command": "npm run test:security",
+      "detected": 51,
+      "passed": 51,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "independent": true,
+      "runtime": "Local Firebase Firestore Emulator"
+    },
+    "scoringBoundaryMatrix": {
+      "command": "npx vitest run src/tests/Phase16_9_25_ScoringBoundaryMatrix.test.ts",
+      "detected": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "independent": true
+    },
+    "coreMasterTest": {
+      "command": "npm test",
+      "detected": 1180,
+      "passed": 1180,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "independent": true,
+      "composition": {
+        "tsxRunner_run_all_tests": {
+          "phases": "Phase 1 through Phase 7B",
+          "count": 418
+        },
+        "vitest_suites": {
+          "phases": "Phase 7C through Phase 16.9.1",
+          "count": 762,
+          "overlapWithTsxRunner": false
+        }
+      }
+    },
+    "coreProductTruthMatrix": {
+      "command": "npx vitest run src/tests/Phase16_9_22_CoreProductTruthMatrix.test.ts",
+      "detected": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "independent": true
+    },
+    "independentAcceptance": {
+      "command": "npx tsx scripts/verify_phase16_9_24_independent_acceptance.ts",
+      "detected": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "independent": true,
+      "model": "quran-stt-int8.onnx (72.7MB)"
+    },
+    "totalDistinctPassedTests": 1273,
+    "totalFailed": 0
+  },
+  "scoreIntegrityAndDefectRemediation": {
+    "unifiedClassroomView": {
+      "status": "REMEDIATED",
+      "staleClosureFix": "Authoritatively queries live words from orchestratorRef.current.getAyahWords()",
+      "scoreInflationEliminated": true,
+      "zeroSessionAccuracy": 0,
+      "certificateGuard": "Blocked unless sessionCompleted AND all words completed successfully"
+    },
+    "studentProgressDashboard": {
+      "status": "REMEDIATED",
+      "staleFallbacksEliminated": "Removed || 95 accuracy and 96 hardcoded tajweed score",
+      "falseTajweedClaimsRemoved": true,
+      "certificateGuard": "Blocked unless totalAyahsMastered > 0 AND accuracyScore >= 80"
+    },
+    "masteryCertificateModal": {
+      "status": "REMEDIATED",
+      "persistenceGuard": "Restricted strictly to verified mastery (accuracyScore >= 80)"
+    }
+  },
+  "audioHardwareAcceptance": {
+    "hostOs": "Windows",
+    "winmmWaveInDevicesCount": 0,
+    "browserMediaDevicesStatus": "NotFoundError: Requested device not found",
+    "status": "ENVIRONMENT_BLOCKER_NO_PHYSICAL_MIC",
+    "syntheticAudioSimulationUsed": false,
+    "charterCompliance": "Strictly refused synthetic microphone faking"
+  },
+  "scientificBoundaries": {
+    "supportedCapabilities": [
+      "Real-time PCM capture & 16kHz resampling",
+      "Mel filterbank feature extraction",
+      "On-device ONNX Conformer inference (Client-Side)",
+      "CTC greedy decoding to Arabic phoneme/word tokens",
+      "Uthmani text lexical alignment & error detection (Substitution, Omission, Repetition)",
+      "Advancement gate blocking on recitation defects",
+      "Pedagogical retry loop & correction feedback"
+    ],
+    "unsupportedCapabilities": [
+      "Short vowel / Harakat inflection verification (stripped by normalization)",
+      "Formal Tajweed acoustic rule measurement (Ghunnah, exact Madd timing, Qalqalah)"
+    ],
+    "phase17Status": "BLOCKED_NO_DATASET"
+  },
+  "auditVerdict": "EVIDENCE_AUDIT_PASS_MIC_PENDING"
+}

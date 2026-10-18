@@ -63,8 +63,8 @@ export const RecitationReportModal: React.FC<RecitationReportModalProps> = ({
 👤 الطالب: ${studentName}
 📖 السورة: ${report.surahName} (${report.completedAyahs} من ${report.totalAyahs} آيات)
 🎯 نمط التسميع: ${report.testedMode === 'BLIND_TEST' ? 'اختبار غيبي (عن ظهر قلب)' : 'تلاوة بالمصحف'}
-⭐ درجة الحفظ والاستحضار: ${report.accuracyScore}%
-✨ دقة أحكام التجويد: ${report.tajweedScore}%
+⭐ نسبة الكلمات المكتملة: ${report.accuracyScore}%
+✨ مؤشر الضبط اللفظي: ${report.tajweedScore}% (أحكام التجويد التخصصية تتطلب مشافهة الشيخ)
 ⏱️ مؤشر الانسيابية والطلاقة: ${report.fluencyScore}%
 ${report.hesitationWords.length > 0 ? `⚠️ مواضع التردد الملحوظة: ${report.hesitationWords.join('، ')}\n` : ''}
 💡 المرجع الصوتي المعتمد: ${report.reciterBenchmark}
@@ -81,8 +81,8 @@ ${report.hesitationWords.length > 0 ? `⚠️ مواضع التردد الملح
 
   const handleCopySummary = () => {
     const text = `📊 تقرير تسميع ${report.surahName} للطالب ${studentName}:
-• نسبة الإتقان: ${report.accuracyScore}%
-• التجويد: ${report.tajweedScore}%
+• نسبة الكلمات المكتملة: ${report.accuracyScore}%
+• مؤشر الضبط اللفظي: ${report.tajweedScore}%
 • نمط التسميع: ${report.testedMode === 'BLIND_TEST' ? 'تسميع غيبي' : 'مصحف مرتّل'}
 • تاريخ التسميع: ${formattedDate}`;
     navigator.clipboard.writeText(text);
@@ -141,21 +141,21 @@ ${report.hesitationWords.length > 0 ? `⚠️ مواضع التردد الملح
           {/* Primary Metrics Grid (4 Cards) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-center">
-              <div className="text-[11px] font-bold text-emerald-800 mb-1">درجة قوة الحفظ</div>
+              <div className="text-[11px] font-bold text-emerald-800 mb-1">نسبة الكلمات المكتملة</div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-950 font-mono">
                 {report.accuracyScore}%
               </div>
               <div className="text-[10px] text-emerald-700 mt-1">
-                {report.accuracyScore >= 90 ? 'ممتاز ومتقن' : report.accuracyScore >= 75 ? 'جيد جداً' : 'يحتاج تثبيت'}
+                {report.accuracyScore >= 90 ? 'إتقان تام للكلمات' : report.accuracyScore >= 75 ? 'جيد جداً' : 'يحتاج تثبيت'}
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
-              <div className="text-[11px] font-bold text-amber-800 mb-1">تحقيق أحكام التجويد</div>
+              <div className="text-[11px] font-bold text-amber-800 mb-1">مؤشر الضبط اللفظي</div>
               <div className="text-2xl sm:text-3xl font-black text-amber-950 font-mono">
                 {report.tajweedScore}%
               </div>
-              <div className="text-[10px] text-amber-700 mt-1">غنة، مدود، ومخارج</div>
+              <div className="text-[10px] text-amber-700 mt-1">مطابقة الحروف (التجويد مشافهة)</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-sky-50/80 border border-sky-200 text-center">

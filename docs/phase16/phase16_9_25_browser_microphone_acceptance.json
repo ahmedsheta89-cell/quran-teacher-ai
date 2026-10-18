@@ -1,0 +1,47 @@
+{
+  "phase": "16.9.25",
+  "auditTitle": "Phase 16.9.25 Real Browser Microphone Acceptance, Product Truth & Release Gate",
+  "timestamp": "2026-10-17T00:30:00+03:00",
+  "repository": {
+    "path": "F:\\quran",
+    "gitHead": "bcff7fceffe7626f931a6510361386bac2902b19",
+    "branch": "main",
+    "backupPath": "F:\\quran_pre_release_backups\\backup_20261017_phase16_9_25"
+  },
+  "verdict": "BROWSER_MIC_ACCEPTANCE_BLOCKED_BY_ENVIRONMENT",
+  "hardwareAudit": {
+    "windowsAudioCaptureDevicesCount": 0,
+    "apiMethod": "winmm.dll::waveInGetNumDevs()",
+    "browserMediaDevicesError": "NotFoundError: Requested device not found",
+    "syntheticFallbackRefusal": "COMPLIANT_WITH_FOUNDER_CHARTER_NO_FAKED_MEDIASTREAM"
+  },
+  "acousticPipelineVerification": {
+    "onnxModel": "models/saboorhsn/quran-stt-int8.onnx",
+    "modelSizeBytes": 76274074,
+    "modelSha256": "ce2f4ad16f38ef793bdf5d064fc6027c995ba1304d9c733f1c1f51608930438a",
+    "totalScenariosTested": 10,
+    "passedScenarios": 10,
+    "failedScenarios": 0
+  },
+  "scoringIntegrityAudit": {
+    "defaultScoreRemoved": true,
+    "artificialFloorRemoved": true,
+    "emptySessionScore": 0,
+    "scoringBoundarySuite": "src/tests/Phase16_9_25_ScoringBoundaryMatrix.test.ts",
+    "scoringBoundaryTestsPassed": 7
+  },
+  "securityAudit": {
+    "firestoreEmulatorTestsTotal": 51,
+    "firestoreEmulatorTestsPassed": 51,
+    "productionDeploymentStatus": "PENDING_GCP_IAM_PERMISSION",
+    "requiredGcpRole": "roles/serviceusage.serviceUsageConsumer",
+    "targetFirebaseProject": "zeta-torch-nz37z"
+  },
+  "scientificGate": {
+    "status": "BLOCKED_NO_DATASET",
+    "corpusTestCount": 0,
+    "rationale": "corpus/test remains empty; zero unverified Tajweed or WER claims permitted"
+  },
+  "totalVerifiedTestsInRepository": 1272,
+  "totalFailedTests": 0
+}

@@ -5,25 +5,27 @@
  * and high-fidelity Islamic pedagogical UX.
  */
 
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { SyncProvider } from './context/SyncContext.tsx';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { Header } from './components/Header.tsx';
 import { FirebaseAuthModal } from './components/auth/FirebaseAuthModal.tsx';
-import { ArchitectureView } from './components/ArchitectureView.tsx';
-import { VerifiedQuranDashboard } from './components/VerifiedQuranDashboard.tsx';
-import { RecitationSessionView } from './components/RecitationSessionView.tsx';
-import { RealTimeRecitationView } from './components/RealTimeRecitationView.tsx';
-import { MemorizationRevisionDashboard } from './components/MemorizationRevisionDashboard.tsx';
-import { QuranDataContractView } from './components/QuranDataContractView.tsx';
-import { TeacherEngineVisualizer } from './components/TeacherEngineVisualizer.tsx';
-import { ErrorTaxonomyView } from './components/ErrorTaxonomyView.tsx';
-import { ScientificGovernanceView } from './components/ScientificGovernanceView.tsx';
-import { TestRunnerView } from './components/TestRunnerView.tsx';
-import { RoadmapView } from './components/RoadmapView.tsx';
-import { StudentProgressDashboard } from './components/StudentProgressDashboard.tsx';
 import { UnifiedClassroomView } from './components/classroom/UnifiedClassroomView.tsx';
-import { TeacherAdminControlDashboard } from './components/admin/TeacherAdminControlDashboard.tsx';
+
+// Dynamic Code Splitting for Secondary Engineering, Governance, and Admin Dashboards
+const ArchitectureView = lazy(() => import('./components/ArchitectureView.tsx').then(m => ({ default: m.ArchitectureView })));
+const VerifiedQuranDashboard = lazy(() => import('./components/VerifiedQuranDashboard.tsx').then(m => ({ default: m.VerifiedQuranDashboard })));
+const RecitationSessionView = lazy(() => import('./components/RecitationSessionView.tsx').then(m => ({ default: m.RecitationSessionView })));
+const RealTimeRecitationView = lazy(() => import('./components/RealTimeRecitationView.tsx').then(m => ({ default: m.RealTimeRecitationView })));
+const MemorizationRevisionDashboard = lazy(() => import('./components/MemorizationRevisionDashboard.tsx').then(m => ({ default: m.MemorizationRevisionDashboard })));
+const QuranDataContractView = lazy(() => import('./components/QuranDataContractView.tsx').then(m => ({ default: m.QuranDataContractView })));
+const TeacherEngineVisualizer = lazy(() => import('./components/TeacherEngineVisualizer.tsx').then(m => ({ default: m.TeacherEngineVisualizer })));
+const ErrorTaxonomyView = lazy(() => import('./components/ErrorTaxonomyView.tsx').then(m => ({ default: m.ErrorTaxonomyView })));
+const ScientificGovernanceView = lazy(() => import('./components/ScientificGovernanceView.tsx').then(m => ({ default: m.ScientificGovernanceView })));
+const TestRunnerView = lazy(() => import('./components/TestRunnerView.tsx').then(m => ({ default: m.TestRunnerView })));
+const RoadmapView = lazy(() => import('./components/RoadmapView.tsx').then(m => ({ default: m.RoadmapView })));
+const StudentProgressDashboard = lazy(() => import('./components/StudentProgressDashboard.tsx').then(m => ({ default: m.StudentProgressDashboard })));
+const TeacherAdminControlDashboard = lazy(() => import('./components/admin/TeacherAdminControlDashboard.tsx').then(m => ({ default: m.TeacherAdminControlDashboard })));
 import {
   Layers,
   BookOpen,
@@ -197,29 +199,40 @@ function AppContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'UNIFIED_CLASSROOM' && (
-          <UnifiedClassroomView
-            initialSurah={classroomSurah}
-            initialAyah={classroomAyah}
-          />
-        )}
-        {activeTab === 'TEACHER_ADMIN' && <TeacherAdminControlDashboard />}
-        {activeTab === 'STUDENT_PROGRESS' && (
-          <StudentProgressDashboard
-            onStartRecitation={handleStartRecitationFromDashboard}
-          />
-        )}
-        {activeTab === 'REALTIME_TEACHER' && <RealTimeRecitationView />}
-        {activeTab === 'MEMORIZATION_INTELLIGENCE' && <MemorizationRevisionDashboard />}
-        {activeTab === 'RECITATION_SESSION' && <RecitationSessionView />}
-        {activeTab === 'VERIFIED_QURAN' && <VerifiedQuranDashboard />}
-        {activeTab === 'ARCHITECTURE' && <ArchitectureView />}
-        {activeTab === 'QURAN_CONTRACT' && <QuranDataContractView />}
-        {activeTab === 'TEACHER_ENGINE' && <TeacherEngineVisualizer />}
-        {activeTab === 'ERROR_TAXONOMY' && <ErrorTaxonomyView />}
-        {activeTab === 'GOVERNANCE' && <ScientificGovernanceView />}
-        {activeTab === 'TEST_SUITE' && <TestRunnerView />}
-        {activeTab === 'ROADMAP' && <RoadmapView />}
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20 text-stone-600 font-arabic-heading" role="status" aria-live="polite">
+              <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-xs border border-stone-200">
+                <div className="w-5 h-5 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xs sm:text-sm font-semibold text-stone-800">جاري تحميل واجهة العمل...</span>
+              </div>
+            </div>
+          }
+        >
+          {activeTab === 'UNIFIED_CLASSROOM' && (
+            <UnifiedClassroomView
+              initialSurah={classroomSurah}
+              initialAyah={classroomAyah}
+            />
+          )}
+          {activeTab === 'TEACHER_ADMIN' && <TeacherAdminControlDashboard />}
+          {activeTab === 'STUDENT_PROGRESS' && (
+            <StudentProgressDashboard
+              onStartRecitation={handleStartRecitationFromDashboard}
+            />
+          )}
+          {activeTab === 'REALTIME_TEACHER' && <RealTimeRecitationView />}
+          {activeTab === 'MEMORIZATION_INTELLIGENCE' && <MemorizationRevisionDashboard />}
+          {activeTab === 'RECITATION_SESSION' && <RecitationSessionView />}
+          {activeTab === 'VERIFIED_QURAN' && <VerifiedQuranDashboard />}
+          {activeTab === 'ARCHITECTURE' && <ArchitectureView />}
+          {activeTab === 'QURAN_CONTRACT' && <QuranDataContractView />}
+          {activeTab === 'TEACHER_ENGINE' && <TeacherEngineVisualizer />}
+          {activeTab === 'ERROR_TAXONOMY' && <ErrorTaxonomyView />}
+          {activeTab === 'GOVERNANCE' && <ScientificGovernanceView />}
+          {activeTab === 'TEST_SUITE' && <TestRunnerView />}
+          {activeTab === 'ROADMAP' && <RoadmapView />}
+        </Suspense>
       </main>
 
       {/* Top-Level Dedicated Firebase Auth Modal */}

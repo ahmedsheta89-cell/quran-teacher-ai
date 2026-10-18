@@ -1,5 +1,64 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: /users/{userId}
+// Document ID: Firebase Auth UID (`userId`, string <= 128 chars)
+// Fields:
+//   - uid: string (required, <= 128 chars, matches document ID)
+//   - email: string (required, <= 200 chars)
+//   - displayName: string (optional, <= 100 chars)
+//   - photoURL: string (optional, <= 1000 chars)
+//   - role: string (optional, enum: 'ADMIN', 'TEACHER', 'STUDENT')
+//   - createdAt: string (optional, ISO timestamp <= 64 chars)
+//   - updatedAt: string (optional, ISO timestamp <= 64 chars)
+//
+// Subcollection: /users/{userId}/profiles/{profileId}
+// Document ID: Deterministic Student ID (`profileId`, string <= 128 chars)
+// Fields:
+//   - studentId: string (required, <= 128 chars, matches `profileId`)
+//   - userId: string (required, <= 128 chars, matches parent `userId`)
+//   - currentSurah: number (optional, 1..114)
+//   - currentAyah: number (optional, 1..286)
+//   - totalAyahsMemorized: number (optional, 0..6236)
+//   - overallRetentionRate: number (optional, 0..100)
+//   - updatedAt: string (optional, ISO timestamp <= 64 chars)
+//
+// Subcollection: /users/{userId}/recitations/{recitationId}
+// Document ID: Unique Recitation Session ID (`recitationId`, string <= 128 chars)
+// Fields:
+//   - sessionId: string (required, <= 128 chars, matches `recitationId`)
+//   - userId: string (required, <= 128 chars, matches parent `userId`)
+//   - surahNumber: number (required, 1..114)
+//   - ayahNumber: number (required, 1..286)
+//   - mode: string (required, enum: 'OPEN_MUSHAF', 'BLIND_TEST')
+//   - accuracyScore: number (optional, 0..100)
+//   - tajweedScore: number (optional, 0..100)
+//   - fluencyScore: number (optional, 0..100)
+//   - hesitationCount: number (optional, >= 0)
+//   - errorCount: number (optional, >= 0)
+//   - timestamp: string (optional, ISO timestamp <= 64 chars)
+//
+// Collection: /certificates/{certificateId}
+// Document ID: Unique Certificate ID (`certificateId`, string <= 128 chars)
+// Fields:
+//   - certificateId: string (required, <= 128 chars, matches `certificateId`)
+//   - userId: string (required, <= 128 chars, student UID)
+//   - studentName: string (required, <= 100 chars)
+//   - surahNumber: number (required, 1..114)
+//   - surahName: string (optional, <= 100 chars)
+//   - accuracyScore: number (optional, 0..100)
+//   - verificationHash: string (required, <= 128 chars)
+//   - issuedAt: string (optional, ISO timestamp <= 64 chars)
+//
+// Collection: /test/{docId}
+// Document ID: 'connection'
+// Description: Smoke test connection endpoint for runtime verification.
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -8,32 +67,46 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Hardened Global Helpers
+    // ===============================================================
+    // Global Authentication & Authorization Helpers
+    // ===============================================================
+
+    // Check if the user is authenticated with Firebase Auth
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Strict ownership verification: user must be authenticated and UID must match
     function isOwner(userId) {
-      return (isSignedIn() && request.auth.uid == userId) || (!isSignedIn() && userId is string && userId.size() > 0);
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Super Admin privilege check for platform manager ahmed.sheta89@gmail.com
+    // Super Admin privilege check: requires verified email or admin custom claim
     function isAdmin() {
-      return (isSignedIn() && request.auth.token.email == 'ahmed.sheta89@gmail.com') ||
-             (!isSignedIn());
+      return isSignedIn() &&
+        (('admin' in request.auth.token && request.auth.token.admin == true) ||
+         ('email' in request.auth.token && request.auth.token.email == 'ahmed.sheta89@gmail.com' &&
+          'email_verified' in request.auth.token && request.auth.token.email_verified == true));
     }
 
+    // Validate identifier strings (non-empty, bounded length)
     function isValidId(id) {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
+    // Shorthand for incoming request data
     function incoming() {
       return request.resource.data;
     }
 
+    // Shorthand for existing document data
     function existing() {
       return resource.data;
     }
+
+    // ===============================================================
+    // Domain Schema Validation Blueprints
+    // ===============================================================
 
     // Validation Blueprint for UserProfile
     function isValidUserProfile(data) {
@@ -92,39 +165,152 @@ service cloud.firestore {
         (!('issuedAt' in data) || (data.issuedAt is string && data.issuedAt.size() <= 64));
     }
 
-    // Match rules for Users and nested subcollections
-    match /users/{userId} {
-      allow get, list: if true;
-      allow create, update: if isValidUserProfile(incoming());
-      allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.token.email == 'ahmed.sheta89@gmail.com');
+    // Validation Blueprint for Public Verification Certificate (Strictly forbids userId!)
+    function isValidPublicCertificate(data) {
+      return data.keys().hasAll(['certificateId', 'studentName', 'surahNumber', 'verificationHash']) &&
+        data.keys().hasOnly(['certificateId', 'studentName', 'surahNumber', 'surahName', 'accuracyScore', 'verificationHash', 'issuedAt']) &&
+        !('userId' in data) &&
+        data.certificateId is string && data.certificateId.size() <= 128 &&
+        data.studentName is string && data.studentName.size() <= 100 &&
+        data.surahNumber is number && data.surahNumber >= 1 && data.surahNumber <= 114 &&
+        data.verificationHash is string && data.verificationHash.size() <= 128 &&
+        (!('surahName' in data) || (data.surahName is string && data.surahName.size() <= 100)) &&
+        (!('accuracyScore' in data) || (data.accuracyScore is number && data.accuracyScore >= 0 && data.accuracyScore <= 100)) &&
+        (!('issuedAt' in data) || (data.issuedAt is string && data.issuedAt.size() <= 64));
+    }
 
-      // Subcollection: Profiles
+    // ===============================================================
+    // Collection Match Rules
+    // ===============================================================
+
+    // Match rules for Users collection and subcollections
+    match /users/{userId} {
+      // Individual document retrieval: restricted strictly to the owning user or admin
+      allow get: if isOwner(userId) || isAdmin();
+
+      // Collection query listing: restricted to super admin only
+      allow list: if isAdmin();
+
+      // User profile creation: must be the authenticated owner (or admin), valid schema,
+      // UID integrity matching docId, and privilege escalation prevention (non-admin cannot set ADMIN role)
+      allow create: if (isOwner(userId) || isAdmin()) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().uid == userId &&
+                       ((!('role' in incoming()) || incoming().role != 'ADMIN') || isAdmin());
+
+      // User profile update: must be owner/admin, valid schema, immutable UID,
+      // and cannot escalate or alter role unless admin
+      allow update: if (isOwner(userId) || isAdmin()) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().uid == userId &&
+                       incoming().uid == existing().uid &&
+                       ((!('role' in incoming()) ||
+                         (incoming().role != 'ADMIN' && (!('role' in existing()) || incoming().role == existing().role))) || isAdmin());
+
+      // User account deletion: restricted to owner or admin
+      allow delete: if isOwner(userId) || isAdmin();
+
+      // Subcollection: Student Memorization Profiles
       match /profiles/{profileId} {
-        allow get, list: if true;
-        allow create, update: if isValidId(profileId) && isValidStudentProfile(incoming(), userId);
-        allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.token.email == 'ahmed.sheta89@gmail.com');
+        allow get, list: if isOwner(userId) || isAdmin();
+
+        allow create: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(profileId) &&
+                         isValidStudentProfile(incoming(), userId) &&
+                         incoming().studentId == profileId;
+
+        allow update: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(profileId) &&
+                         isValidStudentProfile(incoming(), userId) &&
+                         incoming().studentId == profileId &&
+                         incoming().studentId == existing().studentId &&
+                         incoming().userId == existing().userId;
+
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
-      // Subcollection: Recitations
+      // Subcollection: Recitation Sessions
       match /recitations/{recitationId} {
-        allow get, list: if true;
-        allow create, update: if isValidId(recitationId) && isValidRecitationSession(incoming(), userId);
-        allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.token.email == 'ahmed.sheta89@gmail.com');
+        allow get, list: if isOwner(userId) || isAdmin();
+
+        allow create: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(recitationId) &&
+                         isValidRecitationSession(incoming(), userId) &&
+                         incoming().sessionId == recitationId;
+
+        allow update: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(recitationId) &&
+                         isValidRecitationSession(incoming(), userId) &&
+                         incoming().sessionId == recitationId &&
+                         incoming().sessionId == existing().sessionId &&
+                         incoming().userId == existing().userId;
+
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      // Subcollection: User's Private Certificates (Owner and Admin only)
+      match /certificates/{certificateId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+
+        allow create: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(certificateId) &&
+                         isValidMasteryCertificate(incoming()) &&
+                         incoming().certificateId == certificateId &&
+                         incoming().userId == userId;
+
+        allow update: if false;
+
+        allow delete: if isAdmin();
       }
     }
 
-    // Publicly Verifiable Certificates
+    // Two-Tier Public Verification Certificates (Public single-get, Strictly NO userId)
+    match /public_certificates/{certificateId} {
+      // Public single-get for QR-code and shared link verification
+      allow get: if true;
+
+      // Bulk listing strictly forbidden to prevent scraping/enumeration
+      allow list: if false;
+
+      // Creation by authenticated user or admin matching schema (strictly without userId)
+      allow create: if isSignedIn() &&
+                       isValidId(certificateId) &&
+                       isValidPublicCertificate(incoming()) &&
+                       incoming().certificateId == certificateId;
+
+      // Certificates are immutable
+      allow update: if false;
+
+      // Revocation/deletion restricted to super admin
+      allow delete: if isAdmin();
+    }
+
+    // Legacy Certificate Collection (Deprecating public get - restricted to owner or admin)
     match /certificates/{certificateId} {
-      allow get, list: if true;
-      allow create: if isValidId(certificateId) && isValidMasteryCertificate(incoming());
-      allow update: if false; // Certificates are immutable once created
-      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || request.auth.token.email == 'ahmed.sheta89@gmail.com');
+      // Private get/list: authenticated owner or admin only (eliminates public exposure of userId)
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Certificate generation: authenticated user creating their own certificate or admin, strictly validated
+      allow create: if isSignedIn() &&
+                       (incoming().userId == request.auth.uid || isAdmin()) &&
+                       isValidId(certificateId) &&
+                       isValidMasteryCertificate(incoming()) &&
+                       incoming().certificateId == certificateId;
+
+      // Certificates are cryptographically signed and immutable once issued
+      allow update: if false;
+
+      // Revocation/deletion: strictly restricted to super admin
+      allow delete: if isAdmin();
     }
 
     // Test connection document for app initialization check
     match /test/{docId} {
-      allow get, list, read: if true;
-      allow write: if false;
+      allow get: if true;
+      allow list, write: if false;
     }
   }
 }

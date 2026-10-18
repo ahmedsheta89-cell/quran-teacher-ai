@@ -168,17 +168,18 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
       if (state === RealTimeTeacherSessionState.ENDED) {
         setIsRecording(false);
         setSessionCompleted(true);
-        // Persist session to Firebase Firestore
+        // Persist session to Firebase Firestore with dynamically computed metrics
+        const report = getReportData();
         recordRecitationSessionToFirestore({
           sessionId: `rec-${selectedSurah}-${selectedAyah}-${Date.now()}`,
           surahNumber: selectedSurah,
           ayahNumber: selectedAyah,
           mode: recitationMode,
-          accuracyScore: 95,
-          tajweedScore: 92,
-          fluencyScore: 90,
-          hesitationCount: 0,
-          errorCount: 0,
+          accuracyScore: report.accuracyScore,
+          tajweedScore: report.tajweedScore,
+          fluencyScore: report.fluencyScore,
+          hesitationCount: report.hesitationCount,
+          errorCount: report.errorCount,
         }).catch(() => {
           // Guest or offline mode
         });
@@ -517,34 +518,48 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
   };
 
   const getReportData = (): RecitationReportData => {
-    const totalWords = words.length || 1;
-    const completedWords = words.filter((w) => w.visualState === WordVisualState.COMPLETED).length;
+    // Authoritatively query live orchestrator words if available to avoid stale closures
+    const currentWords = orchestratorRef.current ? orchestratorRef.current.getAyahWords() : words;
+    const totalWords = currentWords.length || 1;
+    const completedWords = currentWords.filter((w) => w.visualState === WordVisualState.COMPLETED).length;
 
-    // Accuracy score based on error count, hints, and completed words
-    const baseAccuracy = Math.max(0, 100 - (errorCount * 6) - (revealedHints.length * 4));
-    const accuracyScore = completedWords > 0 ? Math.min(100, Math.max(70, Math.round(baseAccuracy))) : 96;
-    const tajweedScore = Math.max(82, 100 - (errorCount * 5));
-    const fluencyScore = Math.max(75, 100 - (hesitationWords.length * 7));
+    // Real dynamic accuracy score: strictly 0 if no recitation occurred.
+    // Proportional to completed words and penalized by verified errors & hints without artificial score clamping.
+    let accuracyScore = 0;
+    if (completedWords > 0) {
+      const completionRatio = completedWords / totalWords;
+      const penalty = (errorCount * 8) + (revealedHints.length * 4);
+      accuracyScore = Math.max(0, Math.min(100, Math.round((completionRatio * 100) - penalty)));
+    }
+
+    // Since the neural model evaluates acoustic phonetic tokens and NOT formal Tajweed rules
+    // (Tajweed evaluation is pending scholar-certified benchmarks in Phase 17),
+    // tajweedScore is derived from confirmed phonemic accuracy without artificial inflation.
+    const isFullyCompleted = sessionCompleted || (currentWords.length > 0 && completedWords === currentWords.length);
+    const tajweedScore = isFullyCompleted ? Math.max(0, accuracyScore - (errorCount * 2)) : 0;
+    const fluencyScore = completedWords > 0 ? Math.max(0, 100 - (hesitationWords.length * 10)) : 0;
 
     return {
       surahNumber: selectedSurah,
       surahName,
       totalAyahs,
-      completedAyahs: sessionCompleted ? selectedAyah : Math.max(1, selectedAyah - 1),
+      completedAyahs: isFullyCompleted ? selectedAyah : 0,
       accuracyScore,
       tajweedScore,
       fluencyScore,
       hesitationCount: hesitationWords.length,
       errorCount,
-      perfectWordCount: Math.max(0, totalWords - errorCount - revealedHints.length),
+      perfectWordCount: Math.max(0, completedWords - errorCount - revealedHints.length),
       reciterBenchmark: currentReciter.nameArabic,
-      sessionDurationSeconds: Math.max(10, Math.round((Date.now() - sessionStartTime) / 1000)),
+      sessionDurationSeconds: Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000)),
       testedMode: recitationMode,
       hesitationWords,
       correctedWords,
       pedagogicalRemarks: [
-        `تم إجراء التسميع بالاعتماد على نموذج ${currentReciter.nameArabic}`,
-        `معدل الاستجابة اللحظية: أقل من 200ms مع مطابقة لمصحف المدينة المنورة`
+        `تم إجراء التسميع بمطابقة مصحف المدينة المنورة برواية حفص عن عاصم`,
+        isFullyCompleted
+          ? `أتم الطالب تلاوة الآية كاملة بنسبة دقة ${accuracyScore}%`
+          : `الجلسة قيد الاستماع والتسميع (${completedWords} من ${totalWords} كلمة مكتملة)`
       ]
     };
   };
@@ -652,6 +667,8 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
             <div className="flex items-center gap-2 pt-2 sm:pt-0 sm:border-r sm:border-stone-700/80 sm:pr-3">
               <button
                 onClick={isPlayingReciter ? handleStopReciterAudio : handlePlayReciterAudio}
+                aria-label={isPlayingReciter ? 'إيقاف استماع صوت الشيخ' : 'الاستماع لتلاوة الشيخ المرتلة'}
+                aria-pressed={isPlayingReciter}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer ${
                   isPlayingReciter
                     ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 animate-pulse'
@@ -740,6 +757,8 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
           <div className="flex items-center p-0.5 sm:p-1 bg-stone-100 rounded-xl border border-stone-200">
             <button
               onClick={() => setRecitationMode('OPEN_MUSHAF')}
+              aria-label="وضع المصحف المفتوح مع عرض كلمات الآية"
+              aria-pressed={recitationMode === 'OPEN_MUSHAF'}
               className={`px-2 sm:px-3 py-1 rounded-lg text-2xs sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
                 recitationMode === 'OPEN_MUSHAF'
                   ? 'bg-white text-emerald-950 shadow-xs'
@@ -752,6 +771,8 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
             </button>
             <button
               onClick={() => setRecitationMode('BLIND_TEST')}
+              aria-label="وضع الاختبار الغيبي مع إخفاء كلمات الآية"
+              aria-pressed={recitationMode === 'BLIND_TEST'}
               className={`px-2 sm:px-3 py-1 rounded-lg text-2xs sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
                 recitationMode === 'BLIND_TEST'
                   ? 'bg-emerald-900 text-white shadow-xs'
@@ -767,6 +788,7 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
           {/* Quick Guide Trigger */}
           <button
             onClick={() => setShowGuideModal(true)}
+            aria-label="فتح دليل التسميع والاستخدام للمستخدم الجديد"
             className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-2xs sm:text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
             title="دليل التسميع والاستخدام للمستخدم الجديد"
           >
@@ -777,6 +799,7 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
           {/* Quick Report & Certificate Trigger */}
           <button
             onClick={() => setShowReportModal(true)}
+            aria-label="عرض تقرير التسميع وقوة الحفظ وإرساله للشيخ"
             className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-2xs sm:text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
             title="عرض تقرير التسميع وقوة الحفظ وإرساله للشيخ"
           >
@@ -785,7 +808,16 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
           </button>
 
           <button
-            onClick={() => setShowCertificateModal(true)}
+            onClick={() => {
+              const completedWords = words.filter((w) => w.visualState === WordVisualState.COMPLETED).length;
+              if (!sessionCompleted || completedWords < words.length) {
+                setAudioError('شهادة الإتقان تتطلب إتمام تلاوة الآية كاملة بنجاح أولاً.');
+                setTimeout(() => setAudioError(null), 4000);
+                return;
+              }
+              setShowCertificateModal(true);
+            }}
+            aria-label="عرض وطباعة شهادة الإتقان والتزكية"
             className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-2xs sm:text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
             title="عرض وطباعة شهادة الإتقان والتزكية"
           >
@@ -798,6 +830,7 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
             <button
               onClick={handlePrevAyah}
               disabled={selectedAyah <= 1}
+              aria-label="الانتقال إلى الآية السابقة"
               className="p-1 sm:p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
               title="الآية السابقة"
             >
@@ -809,6 +842,7 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
             <button
               onClick={handleNextAyah}
               disabled={selectedAyah >= totalAyahs}
+              aria-label="الانتقال إلى الآية التالية"
               className="p-1 sm:p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
               title="الآية التالية"
             >
@@ -938,6 +972,8 @@ export const UnifiedClassroomView: React.FC<UnifiedClassroomViewProps> = ({
 
                 <button
                   onClick={isRecording ? handleStopRecitation : handleStartRecitation}
+                  aria-label={isRecording ? 'إيقاف التسميع بالمايكروفون' : 'بدء التسميع بالمايكروفون'}
+                  aria-pressed={isRecording}
                   className={`relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform active:scale-95 cursor-pointer ${
                     isRecording
                       ? 'bg-rose-600 hover:bg-rose-700 text-white ring-4 ring-rose-200'
