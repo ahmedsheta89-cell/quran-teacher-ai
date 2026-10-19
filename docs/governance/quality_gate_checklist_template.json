@@ -1,7 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "MandatoryQualityGateChecklist",
-  "standardVersion": "1.0.0-PROD-GATE",
+  "standardVersion": "1.1.0-PROD-GATE",
+  "statusEnum": ["PASS", "FAIL", "BLOCKED", "NOT RUN"],
+  "overallVerdictEnum": ["PASS", "PASS_WITH_BLOCKERS", "FAIL"],
   "lifecycleChecklist": {
     "1_system_analysis": {
       "dependencyMappingCompleted": true,
@@ -37,8 +39,140 @@
     },
     "7_verdict_declaration": {
       "status": "PASS_WITH_BLOCKERS",
-      "validStatuses": ["PASS", "PASS_WITH_BLOCKERS", "FAIL"],
+      "validOverallStatuses": ["PASS", "PASS_WITH_BLOCKERS", "FAIL"],
       "blockersDocumentedWithEvidence": true
+    }
+  },
+  "acceptanceCriteriaMatrix": [
+    {
+      "id": "AC-01",
+      "category": "BUILD_AND_LINT",
+      "description": "Zero TypeScript compiler errors and clean production bundle generation",
+      "status": "PASS",
+      "evidence": "tsc --noEmit exits with code 0; vite build generates production bundle without error"
+    },
+    {
+      "id": "AC-02",
+      "category": "REGRESSION_SUITE",
+      "description": "All core unit, integration, persistence, and teacher policy tests pass",
+      "status": "PASS",
+      "evidence": "Full regression test suite passes with 0 failures"
+    },
+    {
+      "id": "AC-03",
+      "category": "SCORING_AND_CERTIFICATION",
+      "description": "Scoring boundaries strictly enforced (no artificial floors, certificates require >=80% on completed Ayahs)",
+      "status": "PASS",
+      "evidence": "Phase 16.9.25 Scoring Boundary Matrix tests pass (8/8)"
+    },
+    {
+      "id": "AC-04",
+      "category": "CORE_PRODUCT_TRUTH",
+      "description": "Product truth matrix verified: rejection of unauthenticated escalation, deterministic Tajweed evaluation",
+      "status": "PASS",
+      "evidence": "Phase 16.9.22 Product Truth Matrix passes"
+    },
+    {
+      "id": "AC-05",
+      "category": "HARDWARE_AUDIO_INPUT",
+      "description": "Real physical microphone acceptance in browser",
+      "status": "BLOCKED",
+      "evidence": "Host environment audio input count is 0 (waveInGetNumDevs() === 0)"
+    },
+    {
+      "id": "AC-06",
+      "category": "LIVE_FIREBASE_DEPLOYMENT",
+      "description": "Live deployment of firestore.rules to project zeta-torch-nz37z",
+      "status": "BLOCKED",
+      "evidence": "GCP identity requires roles/serviceusage.serviceUsageConsumer permission"
+    },
+    {
+      "id": "AC-07",
+      "category": "PHASE17_SCIENTIFIC_DATASET",
+      "description": "Scientific audio evaluation against human reference dataset",
+      "status": "BLOCKED",
+      "evidence": "BLOCKED_NO_DATASET pending certified human recordings in corpus/test"
+    }
+  ],
+  "testExecutionAccounting": {
+    "deduplicationPolicy": "Never sum tests from overlapping suites to inflate counts. Report distinct suites separately unless non-overlap is strictly proven.",
+    "suites": [
+      {
+        "suiteId": "TSX_MASTER_RUNNER",
+        "command": "npx tsx src/tests/run_all_tests.ts",
+        "description": "Acoustic, language layer, and foundational teacher policy engine runner",
+        "testCount": 418,
+        "passed": 418,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "status": "PASS",
+        "isIndependent": true,
+        "overlapsWith": [],
+        "logSource": "task-runner stdout"
+      },
+      {
+        "suiteId": "VITEST_CORE_SUITES",
+        "command": "npx vitest run src/tests/Phase7c... Phase16_9_1...",
+        "description": "Core Vitest suites (Interactions, Memorization, Identity, Persistence, Offline Sync, UX, Model)",
+        "testCount": 762,
+        "passed": 762,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "status": "PASS",
+        "isIndependent": true,
+        "overlapsWith": [],
+        "logSource": "vitest stdout"
+      },
+      {
+        "suiteId": "SCORING_BOUNDARY_MATRIX",
+        "command": "npx vitest run src/tests/Phase16_9_25_ScoringBoundaryMatrix.test.ts",
+        "description": "Scoring thresholds, zero-floor verification, certificate gating",
+        "testCount": 8,
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "status": "PASS",
+        "isIndependent": true,
+        "overlapsWith": [],
+        "logSource": "vitest stdout"
+      },
+      {
+        "suiteId": "CORE_PRODUCT_TRUTH_MATRIX",
+        "command": "npx vitest run src/tests/Phase16_9_22_CoreProductTruthMatrix.test.ts",
+        "description": "Product truth matrix, unauthenticated security rejection, deterministic policy checks",
+        "testCount": 24,
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "status": "PASS",
+        "isIndependent": true,
+        "overlapsWith": [],
+        "logSource": "vitest stdout"
+      },
+      {
+        "suiteId": "FIRESTORE_SECURITY_EMULATOR",
+        "command": "npm run test:security",
+        "description": "Firestore security rules unit testing with emulator",
+        "testCount": 51,
+        "passed": 51,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "status": "PASS",
+        "isIndependent": true,
+        "overlapsWith": [],
+        "logSource": "firebase emulators exec stdout"
+      }
+    ],
+    "deduplicationSummary": {
+      "accountingMethodology": "Disjoint Suite Ledger",
+      "nonOverlappingSuitesCount": 5,
+      "verifiedIndependentTestCount": 1263,
+      "note": "Suites are partitioned by test file. No single test is counted twice across these 5 disjoint targets."
     }
   }
 }
