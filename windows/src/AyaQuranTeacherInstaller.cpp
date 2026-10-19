@@ -109,22 +109,89 @@ void RegisterUninstall(const std::wstring& installDir) {
     }
 }
 
+std::string ToUtf8(const std::wstring& wstr) {
+    if (wstr.empty()) return std::string();
+    int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string str(size, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &str[0], size, NULL, NULL);
+    return str;
+}
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-    std::wstring installerDir = GetCurrentDir();
-    
-    // Resolve root dist and binary
-    std::wstring exeSrc = installerDir + L"\\bin\\AyaQuranTeacher.exe";
-    if (GetFileAttributesW(exeSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        exeSrc = installerDir + L"\\AyaQuranTeacher.exe";
-    }
-    std::wstring distSrc = installerDir + L"\\..\\dist";
-    if (GetFileAttributesW(distSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        distSrc = installerDir + L"\\dist";
+    // 0. Parse Command Line for Silent Flag
+    bool isSilent = false;
+    if (pCmdLine) {
+        std::wstring cmd(pCmdLine);
+        if (cmd.find(L"/S") != std::wstring::npos ||
+            cmd.find(L"/s") != std::wstring::npos ||
+            cmd.find(L"/silent") != std::wstring::npos ||
+            cmd.find(L"--silent") != std::wstring::npos) {
+            isSilent = true;
+        }
     }
 
-    if (GetFileAttributesW(distSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        MessageBoxW(NULL, L"حزمة التثبيت غير مكتملة: مجلد dist مفقود.", L"خطأ في التثبيت", MB_ICONERROR);
+    std::wstring installerDir = GetCurrentDir();
+    
+    // Resolve executable source from candidates
+    std::wstring exeCandidates[] = {
+        installerDir + L"\\AyaQuranTeacher.exe",
+        installerDir + L"\\bin\\AyaQuranTeacher.exe",
+        installerDir + L"\\..\\bin\\AyaQuranTeacher.exe"
+    };
+    std::wstring exeSrc = L"";
+    for (const auto& p : exeCandidates) {
+        if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            exeSrc = p;
+            break;
+        }
+    }
+
+    // Resolve dist directory from candidates
+    std::wstring distCandidates[] = {
+        installerDir + L"\\dist",
+        installerDir + L"\\..\\dist",
+        installerDir + L"\\..\\..\\dist"
+    };
+    std::wstring distSrc = L"";
+    for (const auto& p : distCandidates) {
+        if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            distSrc = p;
+            break;
+        }
+    }
+
+    // Verify source files exist
+    if (exeSrc.empty() || GetFileAttributesW(exeSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        if (!isSilent) MessageBoxW(NULL, L"حزمة التثبيت غير مكتملة: الملف التنفيذي AyaQuranTeacher.exe مفقود.", L"خطأ في التثبيت", MB_ICONERROR);
         return 1;
+    }
+
+    if (distSrc.empty() || GetFileAttributesW(distSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        if (!isSilent) MessageBoxW(NULL, L"حزمة التثبيت غير مكتملة: مجلد dist مفقود.", L"خطأ في التثبيت", MB_ICONERROR);
+        return 1;
+    }
+
+    // Verify ONNX AI speech model exists in dist
+    std::wstring onnxSrc = distSrc + L"\\models\\saboorhsn\\quran-stt-int8.onnx";
+    if (GetFileAttributesW(onnxSrc.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        if (!isSilent) MessageBoxW(NULL, L"حزمة التثبيت غير مكتملة: ملف نموذج الذكاء الاصطناعي ONNX مفقود في dist/models.", L"خطأ في التثبيت", MB_ICONERROR);
+        return 1;
+    }
+
+    // Check Microsoft Edge presence
+    std::wstring edgeCandidates[] = {
+        L"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        L"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+    };
+    bool edgeFound = false;
+    for (const auto& ep : edgeCandidates) {
+        if (GetFileAttributesW(ep.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            edgeFound = true;
+            break;
+        }
+    }
+    if (!edgeFound && !isSilent) {
+        MessageBoxW(NULL, L"تنبيه: لم يتم العثور على متصفح Microsoft Edge. التطبيق يحتاج متصفح حديث لتشغيل واجهة الويب المحلية.", L"تنبيه المتصفح", MB_ICONWARNING);
     }
 
     // Resolve %LOCALAPPDATA%\Programs\AyaQuranTeacher
@@ -144,42 +211,48 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     // 3. Create Desktop Shortcut
     wchar_t desktopPath[MAX_PATH];
     SHGetFolderPathW(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, desktopPath);
-    std::wstring desktopLnk = std::wstring(desktopPath) + L"\\معلم القرآن الرقمي.lnk";
+    std::wstring desktopLnk = std::wstring(desktopPath) + L"\\Aya Quran Teacher.lnk";
     CreateShortcut(desktopLnk, targetExe, L"معلّم القرآن الرقمي - منصة التسميع والتجويد الذكية", targetDir);
 
     // 4. Create Start Menu Shortcut
     wchar_t programsPath[MAX_PATH];
     SHGetFolderPathW(NULL, CSIDL_PROGRAMS, NULL, 0, programsPath);
-    std::wstring startMenuFolder = std::wstring(programsPath) + L"\\معلم القرآن الرقمي";
+    std::wstring startMenuFolder = std::wstring(programsPath) + L"\\Aya Quran Teacher";
     CreateDirRecursive(startMenuFolder);
-    std::wstring startMenuLnk = startMenuFolder + L"\\معلم القرآن الرقمي.lnk";
+    std::wstring startMenuLnk = startMenuFolder + L"\\Aya Quran Teacher.lnk";
     CreateShortcut(startMenuLnk, targetExe, L"معلّم القرآن الرقمي - منصة التسميع والتجويد الذكية", targetDir);
 
-    // 5. Generate Uninstall Script
+    // 5. Generate Uninstall Script (Guaranteed Preservation of %APPDATA%\AyaQuranTeacher\Data)
     std::wstring uninstCmdPath = targetDir + L"\\Uninstall.cmd";
-    std::wofstream uninstFile(uninstCmdPath);
+    std::ofstream uninstFile(ToUtf8(uninstCmdPath), std::ios::binary);
     if (uninstFile.is_open()) {
-        uninstFile << L"@echo off\r\n";
-        uninstFile << L"chcp 65001 >nul\r\n";
-        uninstFile << L"echo جاري إزالة برنامج معلم القرآن الرقمي...\r\n";
-        uninstFile << L"reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AyaQuranTeacher\" /f >nul 2>&1\r\n";
-        uninstFile << L"del /q \"" << desktopLnk << L"\" >nul 2>&1\r\n";
-        uninstFile << L"rmdir /s /q \"" << startMenuFolder << L"\" >nul 2>&1\r\n";
-        uninstFile << L"timeout /t 1 >nul\r\n";
-        uninstFile << L"cd ..\r\n";
-        uninstFile << L"rmdir /s /q \"" << targetDir << L"\" >nul 2>&1\r\n";
-        uninstFile << L"echo تم إلغاء تثبيت البرنامج بنجاح.\r\n";
+        uninstFile << "@echo off\r\n";
+        uninstFile << "chcp 65001 >nul\r\n";
+        uninstFile << "echo Removing Aya AI Quran Teacher...\r\n";
+        uninstFile << "taskkill /f /im AyaQuranTeacher.exe >nul 2>&1\r\n";
+        uninstFile << "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AyaQuranTeacher\" /f >nul 2>&1\r\n";
+        uninstFile << "del /q \"" << ToUtf8(desktopLnk) << "\" >nul 2>&1\r\n";
+        uninstFile << "rmdir /s /q \"" << ToUtf8(startMenuFolder) << "\" >nul 2>&1\r\n";
+        uninstFile << "echo [Data Preservation Invariant] Local student data in %APPDATA%\\AyaQuranTeacher\\Data is preserved.\r\n";
+        uninstFile << "echo ping 127.0.0.1 -n 2 ^>nul > \"%TEMP%\\aya_cleanup.cmd\"\r\n";
+        uninstFile << "echo rmdir /s /q \"" << ToUtf8(targetDir) << "\" >> \"%TEMP%\\aya_cleanup.cmd\"\r\n";
+        uninstFile << "echo del \"%%~f0\" >> \"%TEMP%\\aya_cleanup.cmd\"\r\n";
+        uninstFile << "cd %TEMP%\r\n";
+        uninstFile << "start \"\" /b cmd /c \"%TEMP%\\aya_cleanup.cmd\"\r\n";
+        uninstFile << "exit /b 0\r\n";
         uninstFile.close();
     }
 
     // 6. Register in Windows Registry
     RegisterUninstall(targetDir);
 
-    MessageBoxW(NULL,
-        L"تم تثبيت برنامج «معلّم القرآن الرقمي» بنجاح على نظام Windows!\r\n\r\n"
-        L"تم إنشاء اختصار على سطح المكتب وقائمة ابدأ.\r\n"
-        L"البرنامج يعمل محلياً دون الحاجة لاتصال بالإنترنت.",
-        L"اكتمال التثبيت", MB_ICONINFORMATION);
+    if (!isSilent) {
+        MessageBoxW(NULL,
+            L"تم تثبيت برنامج «معلّم القرآن الرقمي» بنجاح على نظام Windows!\r\n\r\n"
+            L"تم إنشاء اختصار على سطح المكتب وقائمة ابدأ.\r\n"
+            L"البرنامج يعمل محلياً دون الحاجة لاتصال بالإنترنت.",
+            L"اكتمال التثبيت", MB_ICONINFORMATION);
+    }
 
     return 0;
 }

@@ -93,8 +93,19 @@ void HandleClient(SOCKET clientSocket) {
     reqStream >> method >> rawUri >> protocol;
 
     if (method != "GET" && method != "HEAD") {
-        std::string response = "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n";
+        std::string response = "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
         send(clientSocket, response.c_str(), (int)response.size(), 0);
+        closesocket(clientSocket);
+        return;
+    }
+
+    // Security: Strict prevention of directory traversal and forbidden characters
+    if (rawUri.find("..") != std::string::npos ||
+        rawUri.find("%2e") != std::string::npos ||
+        rawUri.find("%2E") != std::string::npos ||
+        rawUri.find('\\') != std::string::npos) {
+        std::string forbidden = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        send(clientSocket, forbidden.c_str(), (int)forbidden.size(), 0);
         closesocket(clientSocket);
         return;
     }
@@ -115,16 +126,37 @@ void HandleClient(SOCKET clientSocket) {
 
     std::wstring fullPath = g_distPath + relPath;
 
-    // SPA Fallback: if file doesn't exist and not in /assets, serve /index.html
+    // SPA Fallback: if file doesn't exist and not in /assets or /models, serve /index.html
     if (!FileExists(fullPath)) {
-        if (uriPath.find("/assets/") == std::string::npos) {
+        if (uriPath.find("/assets/") == std::string::npos && uriPath.find("/models/") == std::string::npos) {
             fullPath = g_distPath + L"\\index.html";
         }
     }
 
-    std::ifstream file(fullPath, std::ios::binary | std::ios::ate);
+    // Canonical path verification to ensure no escape outside g_distPath
+    wchar_t canonicalFullPath[MAX_PATH];
+    if (GetFullPathNameW(fullPath.c_str(), MAX_PATH, canonicalFullPath, NULL) == 0) {
+        std::string badReq = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        send(clientSocket, badReq.c_str(), (int)badReq.size(), 0);
+        closesocket(clientSocket);
+        return;
+    }
+
+    wchar_t canonicalDistPath[MAX_PATH];
+    GetFullPathNameW(g_distPath.c_str(), MAX_PATH, canonicalDistPath, NULL);
+
+    std::wstring cFull(canonicalFullPath);
+    std::wstring cDist(canonicalDistPath);
+    if (cFull.size() < cDist.size() || _wcsnicmp(cFull.c_str(), cDist.c_str(), cDist.size()) != 0) {
+        std::string forbidden = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        send(clientSocket, forbidden.c_str(), (int)forbidden.size(), 0);
+        closesocket(clientSocket);
+        return;
+    }
+
+    std::ifstream file(canonicalFullPath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        std::string notFound = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+        std::string notFound = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
         send(clientSocket, notFound.c_str(), (int)notFound.size(), 0);
         closesocket(clientSocket);
         return;
@@ -133,14 +165,13 @@ void HandleClient(SOCKET clientSocket) {
     std::streamsize fileSize = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    std::string mimeType = GetMimeType(fullPath);
+    std::string mimeType = GetMimeType(canonicalFullPath);
 
     std::ostringstream headerStream;
     headerStream << "HTTP/1.1 200 OK\r\n";
     headerStream << "Content-Type: " << mimeType << "\r\n";
     headerStream << "Content-Length: " << fileSize << "\r\n";
     headerStream << "Connection: close\r\n";
-    headerStream << "Access-Control-Allow-Origin: *\r\n";
     headerStream << "Cross-Origin-Opener-Policy: same-origin\r\n";
     headerStream << "Cross-Origin-Embedder-Policy: require-corp\r\n";
     headerStream << "Cache-Control: public, max-age=3600\r\n";
@@ -222,12 +253,12 @@ std::wstring FindEdgePath() {
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
     std::wstring exeDir = GetExeDirectory();
 
-    // Check possible dist paths: installed alongside exe, or in dev tree
+    // Check possible dist paths relative to executable ONLY:
+    // 1. exeDir\dist (installed application or portable folder)
+    // 2. exeDir\..\dist (development tree running from windows\bin)
     std::wstring distCandidates[] = {
         exeDir + L"\\dist",
-        exeDir + L"\\..\\dist",
-        exeDir + L"\\..\\..\\dist",
-        L"F:\\quran\\dist"
+        exeDir + L"\\..\\dist"
     };
 
     for (const auto& path : distCandidates) {

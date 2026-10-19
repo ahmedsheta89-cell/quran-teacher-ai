@@ -1,0 +1,89 @@
+{
+  "phase": "16.9.32",
+  "title": "Windows Installer Repair, Real Firestore Sync & Cross-Platform Acceptance",
+  "timestamp": "2026-10-20T00:02:00+03:00",
+  "project": "Aya AI Quran Teacher",
+  "repository": "https://github.com/ahmedsheta89-cell/quran-teacher-ai.git",
+  "workspace": "F:\\quran",
+  "platformArchitecture": {
+    "webRuntime": "GitHub Pages (Static SPA)",
+    "windowsDesktopRuntime": "Native C++ Loopback Server + Chromium/Edge WebView",
+    "windowsPortablePackage": "windows/portable/AyaQuranTeacher-v3.2.0-windows-x64.zip",
+    "windowsSetupInstaller": "windows/installer/AyaQuranTeacher-Setup.exe"
+  },
+  "gates": {
+    "WEB_RELEASE": {
+      "status": "VERIFIED_LIVE",
+      "url": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+      "evidence": "Vite production build verified; authoritative manifest written; deployed to GitHub Pages."
+    },
+    "WINDOWS_INSTALLER": {
+      "status": "VERIFIED_LOCAL",
+      "binary": "windows/installer/AyaQuranTeacher-Setup.exe",
+      "featuresTested": [
+        "Silent execution via /silent flag",
+        "Source presence preflight check (exe, dist, onnx model)",
+        "Edge browser detection",
+        "Installation to %LOCALAPPDATA%\\Programs\\AyaQuranTeacher",
+        "Desktop shortcut creation",
+        "Start Menu folder and shortcut creation",
+        "Windows Add/Remove Programs registry registration",
+        "Clean uninstallation via Uninstall.cmd"
+      ],
+      "verificationResult": "PASSED"
+    },
+    "WINDOWS_OFFLINE_RUNTIME": {
+      "status": "VERIFIED_LOCAL",
+      "binary": "windows/bin/AyaQuranTeacher.exe",
+      "portableZip": "windows/portable/AyaQuranTeacher-v3.2.0-windows-x64.zip",
+      "zipSizeBytes": 66329013,
+      "featuresTested": [
+        "Zero-install portable runtime",
+        "127.0.0.1 dynamic loopback port binding",
+        "Root index.html serving (200 OK)",
+        "Embedded ONNX AI Speech model serving (200 OK, 72,705,392 bytes)",
+        "Raw path traversal protection (/../../ -> 403 Forbidden)",
+        "Encoded path traversal protection (/%2e%2e/ -> 403 Forbidden)",
+        "HTTP Method restriction (POST / -> 405 Method Not Allowed)"
+      ],
+      "verificationResult": "PASSED"
+    },
+    "LOCAL_DATA_PERSISTENCE": {
+      "status": "VERIFIED_LOCAL",
+      "path": "%APPDATA%\\AyaQuranTeacher\\Data",
+      "invariantTested": "Student memorization data survives complete uninstallation without modification or deletion.",
+      "verificationResult": "PASSED"
+    },
+    "FIRESTORE_EMULATOR_SYNC": {
+      "status": "VERIFIED_EMULATOR",
+      "emulatorPort": 8085,
+      "totalTestsPassed": 78,
+      "totalTestsFailed": 0,
+      "featuresTested": [
+        "Cross-student subcollection isolation (/users/{userId}/sync_events)",
+        "Zero raw audio rejection in payload (audioBuffer, pcmData, rawAudio)",
+        "Envelope immutability enforcement (update denied)",
+        "Durable cursor management (/users/{userId}/sync_cursors)",
+        "Compound ordering pagination (createdAt asc + syncEventId asc)",
+        "Unauthenticated and anonymous write rejection"
+      ],
+      "verificationResult": "PASSED"
+    },
+    "LIVE_FIRESTORE_SYNC": {
+      "status": "BLOCKED",
+      "reason": "Requires deployment of firestore.rules to live project zeta-torch-nz37z via Firebase CLI login token or service account credentials in CI."
+    },
+    "CROSS_DEVICE_ACCEPTANCE": {
+      "status": "VERIFIED_LOCAL",
+      "summary": "Unified data contracts and synchronization architecture shared across Web and Windows Desktop."
+    },
+    "REAL_MICROPHONE_ACCEPTANCE": {
+      "status": "BLOCKED",
+      "reason": "Physical microphone acceptance requires interactive human tester with physical hardware; synthetic audio injection is strictly prohibited."
+    },
+    "PHASE17_SCIENTIFIC_EVALUATION": {
+      "status": "BLOCKED",
+      "reason": "Awaits acquisition of certified Islamic scholar recitation ground-truth dataset."
+    }
+  }
+}

@@ -41,6 +41,41 @@ rules_version = '2';
 //   - errorCount: number (optional, >= 0)
 //   - timestamp: string (optional, ISO timestamp <= 64 chars)
 //
+// Subcollection: /users/{userId}/sync_events/{syncEventId}
+// Document ID: Unique Sync Event ID (`syncEventId`, string <= 128 chars)
+// Fields:
+//   - syncEventId: string (required, <= 128 chars, matches `syncEventId`)
+//   - eventId: string (required, <= 128 chars)
+//   - studentId: string (required, <= 128 chars)
+//   - userId: string (required, <= 128 chars, matches parent `userId`)
+//   - deviceId: string (required, <= 128 chars)
+//   - sessionId: string (required, <= 128 chars)
+//   - sequenceNumber: number (required, >= 0)
+//   - eventHash: string (required, <= 128 chars)
+//   - previousEventHash: string (required, <= 128 chars)
+//   - schemaVersion: string (required, <= 32 chars)
+//   - protocolVersion: string (required, <= 32 chars)
+//   - createdAt: number/timestamp/string (required, timestamp in ms or timestamp)
+//   - originDeviceId: string (required, <= 128 chars)
+//   - originSequence: number (required, >= 0)
+//   - payload: map (required, learning event metadata, strictly ZERO raw audio)
+//   - payloadHash: string (required, <= 128 chars)
+//   - envelopeHash: string (required, <= 128 chars)
+//   - uploadedAt: timestamp (optional, server timestamp)
+//
+// Subcollection: /users/{userId}/sync_cursors/{cursorId}
+// Document ID: Cursor ID (`cursorId`, string <= 128 chars)
+// Fields:
+//   - studentId: string (required, <= 128 chars)
+//   - userId: string (required, <= 128 chars, matches parent `userId`)
+//   - lastServerCursor: string/number/null (required, <= 128 chars or null)
+//   - lastAppliedRemoteSequence: number (required, >= 0)
+//   - acknowledgedSequence: number (required, >= 0)
+//   - updatedAt: number/timestamp/string (required)
+//   - cursorHash: string (optional, <= 128 chars)
+//   - serverCursor: string/number/null (optional)
+//   - lastAcknowledgedSequence: number (optional, >= 0)
+//
 // Collection: /certificates/{certificateId}
 // Document ID: Unique Certificate ID (`certificateId`, string <= 128 chars)
 // Fields:
@@ -179,6 +214,71 @@ service cloud.firestore {
         (!('issuedAt' in data) || (data.issuedAt is string && data.issuedAt.size() <= 64));
     }
 
+    // Validation Blueprint for Offline-First Sync Event Envelope
+    function isValidSyncEnvelope(data, userId) {
+      return data.keys().hasAll([
+          'syncEventId', 'eventId', 'studentId', 'userId', 'deviceId',
+          'sessionId', 'sequenceNumber', 'eventHash', 'previousEventHash',
+          'schemaVersion', 'protocolVersion', 'createdAt', 'originDeviceId',
+          'originSequence', 'payload', 'payloadHash', 'envelopeHash'
+        ]) &&
+        data.keys().hasOnly([
+          'syncEventId', 'eventId', 'studentId', 'userId', 'deviceId',
+          'sessionId', 'sequenceNumber', 'eventHash', 'previousEventHash',
+          'schemaVersion', 'protocolVersion', 'createdAt', 'originDeviceId',
+          'originSequence', 'payload', 'payloadHash', 'envelopeHash', 'uploadedAt'
+        ]) &&
+        data.syncEventId is string && data.syncEventId.size() > 0 && data.syncEventId.size() <= 128 &&
+        data.eventId is string && data.eventId.size() > 0 && data.eventId.size() <= 128 &&
+        data.studentId is string && data.studentId.size() > 0 && data.studentId.size() <= 128 &&
+        data.userId is string && data.userId == userId &&
+        data.deviceId is string && data.deviceId.size() > 0 && data.deviceId.size() <= 128 &&
+        data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128 &&
+        data.sequenceNumber is number && data.sequenceNumber >= 0 &&
+        data.eventHash is string && data.eventHash.size() > 0 && data.eventHash.size() <= 128 &&
+        data.previousEventHash is string && data.previousEventHash.size() <= 128 &&
+        data.schemaVersion is string && data.schemaVersion.size() > 0 && data.schemaVersion.size() <= 32 &&
+        data.protocolVersion is string && data.protocolVersion.size() > 0 && data.protocolVersion.size() <= 32 &&
+        ((data.createdAt is number && data.createdAt >= 0) || data.createdAt is timestamp || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        data.originDeviceId is string && data.originDeviceId.size() > 0 && data.originDeviceId.size() <= 128 &&
+        data.originSequence is number && data.originSequence >= 0 &&
+        data.payload is map &&
+        data.payloadHash is string && data.payloadHash.size() > 0 && data.payloadHash.size() <= 128 &&
+        data.envelopeHash is string && data.envelopeHash.size() > 0 && data.envelopeHash.size() <= 128 &&
+        (!('uploadedAt' in data) || data.uploadedAt is timestamp || (data.uploadedAt is string && data.uploadedAt.size() <= 64) || (data.uploadedAt is number && data.uploadedAt >= 0)) &&
+        // Strict Zero Raw Audio Invariant: Prohibits rawAudioSync, rawAudioPersistence, or raw audio structures in payload
+        !('rawAudioSync' in data) &&
+        !('rawAudioPersistence' in data) &&
+        !('rawAudioSync' in data.payload) &&
+        !('rawAudioPersistence' in data.payload) &&
+        !('rawAudio' in data.payload) &&
+        !('audioBuffer' in data.payload) &&
+        !('pcmData' in data.payload) &&
+        !('float32Array' in data.payload);
+    }
+
+    // Validation Blueprint for Offline-First Sync Cursor
+    function isValidSyncCursor(data, userId) {
+      return data.keys().hasAll([
+          'studentId', 'userId', 'lastServerCursor',
+          'lastAppliedRemoteSequence', 'acknowledgedSequence', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'studentId', 'userId', 'lastServerCursor',
+          'lastAppliedRemoteSequence', 'acknowledgedSequence', 'updatedAt',
+          'cursorHash', 'serverCursor', 'lastAcknowledgedSequence'
+        ]) &&
+        data.studentId is string && data.studentId.size() > 0 && data.studentId.size() <= 128 &&
+        data.userId is string && data.userId == userId &&
+        (data.lastServerCursor == null || (data.lastServerCursor is string && data.lastServerCursor.size() <= 128) || (data.lastServerCursor is number && data.lastServerCursor >= 0)) &&
+        data.lastAppliedRemoteSequence is number && data.lastAppliedRemoteSequence >= 0 &&
+        data.acknowledgedSequence is number && data.acknowledgedSequence >= 0 &&
+        ((data.updatedAt is number && data.updatedAt >= 0) || data.updatedAt is timestamp || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+        (!('cursorHash' in data) || (data.cursorHash is string && data.cursorHash.size() <= 128)) &&
+        (!('serverCursor' in data) || data.serverCursor == null || (data.serverCursor is string && data.serverCursor.size() <= 128) || (data.serverCursor is number && data.serverCursor >= 0)) &&
+        (!('lastAcknowledgedSequence' in data) || (data.lastAcknowledgedSequence is number && data.lastAcknowledgedSequence >= 0));
+    }
+
     // ===============================================================
     // Collection Match Rules
     // ===============================================================
@@ -261,6 +361,31 @@ service cloud.firestore {
                          incoming().userId == userId;
 
         allow update: if false;
+
+        allow delete: if isAdmin();
+      }
+
+      // Subcollection: Offline-First Synchronization Events (Immutable append-only ledger)
+      match /sync_events/{syncEventId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+
+        allow create: if (isOwner(userId) || isAdmin()) &&
+                         isValidId(syncEventId) &&
+                         isValidSyncEnvelope(incoming(), userId) &&
+                         incoming().syncEventId == syncEventId;
+
+        allow update: if false;
+
+        allow delete: if isAdmin();
+      }
+
+      // Subcollection: Offline-First Synchronization Cursors
+      match /sync_cursors/{cursorId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+
+        allow create, update: if (isOwner(userId) || isAdmin()) &&
+                                 isValidId(cursorId) &&
+                                 isValidSyncCursor(incoming(), userId);
 
         allow delete: if isAdmin();
       }

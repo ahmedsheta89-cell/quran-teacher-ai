@@ -83,6 +83,19 @@ export class FirestoreSyncTransport implements ISyncTransport {
     }
 
     const currentUserId = auth.currentUser?.uid;
+    // Reject cloud push if user is unauthenticated or anonymous
+    if (!currentUserId || auth.currentUser?.isAnonymous) {
+      return {
+        acceptedIds: [],
+        rejected: envelopes.map((e) => ({
+          syncEventId: e.syncEventId,
+          reason: 'AUTH_REQUIRED: Cloud sync requires an authenticated user account.',
+          permanent: false,
+        })),
+        conflicts: [],
+        serverCursor: Date.now().toString(),
+      };
+    }
 
     for (const env of envelopes) {
       try {
@@ -96,9 +109,8 @@ export class FirestoreSyncTransport implements ISyncTransport {
           continue;
         }
 
-        // Student identity isolation check
-        const targetStudentId = env.studentId || currentUserId || 'anonymous';
-        const eventDocRef = doc(db, 'users', targetStudentId, 'sync_events', env.syncEventId);
+        // Student identity isolation check: Envelopes in Cloud are strictly bound to currentUserId
+        const eventDocRef = doc(db, 'users', currentUserId, 'sync_events', env.syncEventId);
 
         // Check if event already exists
         const existingSnap = await getDoc(eventDocRef).catch(() => null);
@@ -126,7 +138,8 @@ export class FirestoreSyncTransport implements ISyncTransport {
         await setDoc(eventDocRef, {
           syncEventId: env.syncEventId,
           eventId: env.eventId,
-          studentId: targetStudentId,
+          studentId: env.studentId || currentUserId,
+          userId: currentUserId,
           deviceId: env.deviceId,
           sessionId: env.sessionId,
           sequenceNumber: env.sequenceNumber,
@@ -177,28 +190,57 @@ export class FirestoreSyncTransport implements ISyncTransport {
       };
     }
 
+    const currentUserId = auth.currentUser?.uid;
+    if (!currentUserId || auth.currentUser?.isAnonymous) {
+      return {
+        envelopes: [],
+        nextCursor: sinceCursor,
+        hasMore: false,
+        serverCursor: sinceCursor || '0',
+      };
+    }
+
     try {
-      const targetStudentId = studentId || auth.currentUser?.uid || 'anonymous';
-      const eventsCol = collection(db, 'users', targetStudentId, 'sync_events');
+      const eventsCol = collection(db, 'users', currentUserId, 'sync_events');
       
-      const q = sinceCursor
-        ? query(
-            eventsCol,
-            orderBy('createdAt', 'asc'),
-            where('createdAt', '>', parseInt(sinceCursor, 10) || 0),
-            firestoreLimit(limitCount)
-          )
-        : query(eventsCol, orderBy('createdAt', 'asc'), firestoreLimit(limitCount));
+      let q;
+      if (sinceCursor && sinceCursor !== '0') {
+        const cursorParts = sinceCursor.split(':');
+        const cursorTime = parseInt(cursorParts[0], 10) || 0;
+
+        q = query(
+          eventsCol,
+          orderBy('createdAt', 'asc'),
+          orderBy('syncEventId', 'asc'),
+          where('createdAt', '>=', cursorTime),
+          firestoreLimit(limitCount + 10)
+        );
+      } else {
+        q = query(
+          eventsCol,
+          orderBy('createdAt', 'asc'),
+          orderBy('syncEventId', 'asc'),
+          firestoreLimit(limitCount)
+        );
+      }
 
       const snapshot = await getDocs(q);
       const envelopes: SyncEventEnvelope[] = [];
 
       let lastTimestamp = sinceCursor;
+      const cursorParts = sinceCursor ? sinceCursor.split(':') : [];
+      const cursorTime = cursorParts[0] ? parseInt(cursorParts[0], 10) : 0;
+      const cursorId = cursorParts[1] || '';
+
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as SyncEventEnvelope;
-        envelopes.push(data);
-        if (data.createdAt) {
-          lastTimestamp = data.createdAt.toString();
+        // Filter out items already consumed when at the exact boundary
+        if (sinceCursor && data.createdAt === cursorTime && cursorId && data.syncEventId <= cursorId) {
+          return;
+        }
+        if (envelopes.length < limitCount) {
+          envelopes.push(data);
+          lastTimestamp = `${data.createdAt}:${data.syncEventId}`;
         }
       });
 
@@ -223,9 +265,22 @@ export class FirestoreSyncTransport implements ISyncTransport {
    * Acknowledges successfully processed inbound events.
    */
   public async acknowledge(studentId: string, syncEventIds: readonly string[]): Promise<void> {
-    // In Firestore, storing the document constitutes delivery.
-    // Cursor updates happen in SyncCursorManager.
-    return Promise.resolve();
+    const currentUserId = auth.currentUser?.uid;
+    if (!currentUserId || auth.currentUser?.isAnonymous) return;
+    try {
+      const cursorDocRef = doc(db, 'users', currentUserId, 'sync_cursors', 'default');
+      const now = Date.now();
+      await setDoc(cursorDocRef, {
+        studentId: studentId || currentUserId,
+        userId: currentUserId,
+        lastServerCursor: syncEventIds.length > 0 ? syncEventIds[syncEventIds.length - 1] : null,
+        lastAppliedRemoteSequence: 0,
+        acknowledgedSequence: syncEventIds.length,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirestoreSyncTransport] Cursor update failed:', err);
+    }
   }
 
   /**
@@ -245,11 +300,12 @@ export class FirestoreSyncTransport implements ISyncTransport {
    */
   public async getServerCursor(studentId: string): Promise<string | null> {
     try {
-      const targetStudentId = studentId || auth.currentUser?.uid || 'anonymous';
-      const cursorDoc = await getDoc(doc(db, 'users', targetStudentId, 'sync_cursors', 'default'));
+      const currentUserId = auth.currentUser?.uid;
+      if (!currentUserId || auth.currentUser?.isAnonymous) return null;
+      const cursorDoc = await getDoc(doc(db, 'users', currentUserId, 'sync_cursors', 'default'));
       if (cursorDoc.exists()) {
         const data = cursorDoc.data();
-        return data?.serverCursor || null;
+        return data?.lastServerCursor || null;
       }
       return null;
     } catch {
@@ -269,10 +325,27 @@ export class FirestoreSyncTransport implements ISyncTransport {
       p.pcmData ||
       p.rawAudio ||
       p.float32Array ||
+      p.rawAudioSync ||
+      p.rawAudioPersistence ||
       payload instanceof Float32Array ||
       (typeof ArrayBuffer !== 'undefined' && payload instanceof ArrayBuffer)
     ) {
       return true;
+    }
+
+    // Recursively check nested objects
+    for (const key of Object.keys(p)) {
+      const val = p[key];
+      if (val && typeof val === 'object') {
+        if (
+          val instanceof Float32Array ||
+          (typeof ArrayBuffer !== 'undefined' && val instanceof ArrayBuffer) ||
+          key.toLowerCase().includes('rawaudio') ||
+          key.toLowerCase().includes('pcm')
+        ) {
+          return true;
+        }
+      }
     }
 
     return false;

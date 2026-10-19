@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "test": "npx tsx src/tests/run_all_tests.ts && npx vitest run src/tests/Phase7cRealTimeTeacherInteraction.test.ts && npx vitest run src/tests/Phase7dMemorizationIntelligence.test.ts && npx vitest run src/tests/Phase8aStudentIdentityArchitecture.test.ts && npx vitest run src/tests/Phase8bPersistentLearningStore.test.ts && npx vitest run src/tests/Phase8cOfflineFirstSync.test.ts && npx vitest run src/tests/Phase8dStudentProgressUX.test.ts && npx vitest run src/tests/Phase12_1_FoundationStressAudit.test.ts && npx vitest run src/tests/Phase12_2_RealModelRuntimeAudit.test.ts && npx vitest run src/tests/Phase16_9_RecitationAdvancementGate.test.ts && npx vitest run src/tests/Phase16_9_1_IntegrationAdvancementGate.test.ts",
-    "test:security": "firebase emulators:exec --only firestore \"npx vitest run src/tests/firestore_security_rules.test.ts\"",
+    "test:security": "firebase emulators:exec --only firestore \"npx vitest run src/tests/firestore_security_rules.test.ts src/tests/FirestoreSyncRealEmulator.test.ts\"",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

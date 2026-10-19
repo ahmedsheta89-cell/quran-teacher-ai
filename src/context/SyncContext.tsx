@@ -19,6 +19,9 @@ import { ISyncTransport } from '../domain/sync/types.ts';
 import { StudentIdentity, StudentIdentityType, StudentIdentityStatus } from '../domain/identity/types.ts';
 import { PersistentMemorizationEvent } from '../domain/persistence/types.ts';
 
+import { auth } from '../infrastructure/firebase/firebaseClient.ts';
+import { onAuthStateChanged } from 'firebase/auth';
+
 interface SyncContextValue {
   coordinator: SyncCoordinator | null;
   persistentStore: PersistentLearningStore | null;
@@ -63,6 +66,9 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [summary, setSummary] = useState<SyncStatusSummary>(DEFAULT_SUMMARY);
   const [conflicts, setConflicts] = useState<SyncConflictRecord[]>([]);
   const [isReady, setIsReady] = useState<boolean>(false);
+
+  const authCtxRef = React.useRef<SyncAuthContext | null>(null);
+  const coordinatorRef = React.useRef<SyncCoordinator | null>(null);
 
   // Initialize store and sync coordinator
   useEffect(() => {
@@ -111,6 +117,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // 5. Auth Context
         const authCtx = new SyncAuthContext(activeStudent);
+        authCtxRef.current = authCtx;
 
         // 6. Sync Coordinator
         const coord = new SyncCoordinator({
@@ -127,6 +134,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         await coord.init();
+        coordinatorRef.current = coord;
 
         if (!isCancelled) {
           setPersistentStore(pStore);
@@ -147,6 +155,38 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       isCancelled = true;
     };
+  }, []);
+
+  // Synchronize Auth Identity when Firebase user signs in/out
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const cloudStudent: StudentIdentity = {
+          studentId: firebaseUser.uid,
+          accountId: firebaseUser.uid,
+          identityType: StudentIdentityType.AUTHENTICATED,
+          createdAt: firebaseUser.metadata?.creationTime ? new Date(firebaseUser.metadata.creationTime).getTime() : Date.now(),
+          updatedAt: Date.now(),
+          status: StudentIdentityStatus.ACTIVE,
+          version: '1.0.0',
+          isAnonymous: false,
+        };
+        setActiveStudent(cloudStudent);
+        if (authCtxRef.current) {
+          authCtxRef.current.setIdentity(cloudStudent);
+        }
+        if (coordinatorRef.current) {
+          coordinatorRef.current.sync(cloudStudent.studentId).catch(() => {});
+        }
+      } else {
+        setActiveStudent(DEFAULT_ANONYMOUS_STUDENT);
+        if (authCtxRef.current) {
+          authCtxRef.current.setIdentity(DEFAULT_ANONYMOUS_STUDENT);
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Refresh conflicts and summary
@@ -223,6 +263,13 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [coordinator, refreshStatus]
   );
 
+  const handleSetStudent = useCallback((student: StudentIdentity) => {
+    setActiveStudent(student);
+    if (authCtxRef.current) {
+      authCtxRef.current.setIdentity(student);
+    }
+  }, []);
+
   const value = useMemo<SyncContextValue>(
     () => ({
       coordinator,
@@ -234,7 +281,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncNow,
       recordEvent,
       resolveConflict,
-      setStudent: setActiveStudent,
+      setStudent: handleSetStudent,
     }),
     [
       coordinator,
@@ -246,6 +293,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncNow,
       recordEvent,
       resolveConflict,
+      handleSetStudent,
     ]
   );
 

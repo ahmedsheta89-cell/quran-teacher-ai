@@ -39,3 +39,4 @@ Thumbs.db
 models/test_whisper/
 *.onnx
 *.obj
+windows/portable/

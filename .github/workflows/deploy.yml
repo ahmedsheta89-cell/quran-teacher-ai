@@ -50,12 +50,34 @@ jobs:
         with:
           path: './dist'
 
+  windows-validation:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Compile Windows Runtime & Setup Installer
+        run: |
+          cd windows/src
+          cl /O2 /W3 /DUNICODE /D_UNICODE /EHsc AyaQuranTeacher.cpp /link ws2_32.lib shell32.lib advapi32.lib user32.lib /OUT:..\bin\AyaQuranTeacher.exe
+          cl /O2 /W3 /DUNICODE /D_UNICODE /EHsc AyaQuranTeacherInstaller.cpp /link shell32.lib ole32.lib advapi32.lib user32.lib /OUT:..\installer\AyaQuranTeacher-Setup.exe
+        shell: cmd
+
+      - name: Verify Executables Generated
+        run: |
+          if (!(Test-Path "windows/bin/AyaQuranTeacher.exe")) { throw "Binary missing" }
+          if (!(Test-Path "windows/installer/AyaQuranTeacher-Setup.exe")) { throw "Setup missing" }
+        shell: pwsh
+
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, windows-validation]
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

@@ -262,10 +262,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SyncProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <SyncProvider>
         <AppContent />
-      </AuthProvider>
-    </SyncProvider>
+      </SyncProvider>
+    </AuthProvider>
   );
 }
