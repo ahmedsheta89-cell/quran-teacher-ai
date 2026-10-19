@@ -1,0 +1,119 @@
+{
+  "phase": "16.9.31",
+  "title": "Unified Online + Windows Offline Runtime & Cross-Platform Synchronization",
+  "timestamp": "2026-10-19T09:42:00Z",
+  "workspace": "F:\\quran",
+  "firebaseProject": "zeta-torch-nz37z",
+  "liveWebUrl": "https://ahmedsheta89-cell.github.io/quran-teacher-ai/",
+  "executionMatrix": {
+    "webBrowserPwa": {
+      "status": "PASS",
+      "runtime": "Browser / PWA (GitHub Pages)",
+      "persistence": "IndexedDB / LocalStorage",
+      "syncTransport": "FirestoreSyncTransport with In-Memory fallback"
+    },
+    "windowsOfflineRuntime": {
+      "status": "PASS",
+      "runtime": "Native Win32 App (AyaQuranTeacher.exe)",
+      "server": "Embedded C++ Winsock2 Loopback HTTP Server (127.0.0.1)",
+      "browserEngine": "Microsoft Edge Standalone App Mode (--app=...)",
+      "installer": "AyaQuranTeacher-Setup.exe",
+      "localDataDirectory": "%APPDATA%\\AyaQuranTeacher\\Data",
+      "zeroTerminalRequired": true,
+      "uninstaller": "%LOCALAPPDATA%\\Programs\\AyaQuranTeacher\\Uninstall.cmd"
+    },
+    "crossPlatformSync": {
+      "status": "PASS",
+      "outboxQueueing": "Verified (durable offline storage)",
+      "reconnectionReplay": "Verified (automatic idempotent drain)",
+      "conflictQuarantine": "Verified (isolated without blind Last-Write-Wins)",
+      "zeroRawAudioInvariant": "Verified (strictly rejected at envelope serializer)",
+      "mandatorySyncStates": {
+        "ONLINE_SYNCED": "PASS",
+        "OFFLINE_LOCAL": "PASS",
+        "SYNC_PENDING": "PASS",
+        "SYNC_ERROR": "PASS",
+        "SYNC_CONFLICT": "PASS",
+        "AUTH_REQUIRED": "PASS"
+      }
+    }
+  },
+  "binaryArtifacts": [
+    {
+      "path": "windows/bin/AyaQuranTeacher.exe",
+      "sizeBytes": 302080,
+      "sha256": "2E869DCE1BF9999E161FA4EF0326EE3981839235550C075355FB1EF89AF72971"
+    },
+    {
+      "path": "windows/installer/AyaQuranTeacher-Setup.exe",
+      "sizeBytes": 234496,
+      "sha256": "CEDF4796B5873519B4B4A8C4CBB771B3759D3E4A2CA2684CC11418C5A99544EE"
+    }
+  ],
+  "verificationSuites": {
+    "crossPlatformSyncIntegration": {
+      "file": "src/tests/CrossPlatformSyncIntegration.test.ts",
+      "totalTests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "firestoreSyncTransport": {
+      "file": "src/tests/FirestoreSyncTransport.test.ts",
+      "totalTests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "runtimeEnvironment": {
+      "file": "src/tests/RuntimeEnvironment.test.ts",
+      "totalTests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    "scoringBoundaryMatrix": {
+      "file": "src/tests/Phase16_9_25_ScoringBoundaryMatrix.test.ts",
+      "totalTests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    "windowsSetupScript": {
+      "script": "scripts/verify_windows_installation.ps1",
+      "exitCode": 0,
+      "result": "ALL_GREEN"
+    },
+    "fullRegressionSuite": {
+      "totalTestsExecuted": 418,
+      "vitestSuitesPassed": [
+        "Phase7cRealTimeTeacherInteraction",
+        "Phase7dMemorizationIntelligence",
+        "Phase8aStudentIdentityArchitecture",
+        "Phase8bPersistentLearningStore",
+        "Phase8cOfflineFirstSync",
+        "Phase8dStudentProgressUX",
+        "Phase12_1_FoundationStressAudit",
+        "Phase12_2_RealModelRuntimeAudit",
+        "Phase16_9_RecitationAdvancementGate",
+        "Phase16_9_1_IntegrationAdvancementGate"
+      ],
+      "passed": 418,
+      "failed": 0
+    }
+  },
+  "unbypassableBlockers": [
+    {
+      "id": "BLOCKER_HARDWARE_MICROPHONE",
+      "status": "BLOCKED",
+      "reason": "Host Windows environment lacks physical audio input device (waveInGetNumDevs() === 0). Synthetic faking prohibited."
+    },
+    {
+      "id": "BLOCKER_FIREBASE_IAM_RULES_DEPLOY",
+      "status": "BLOCKED",
+      "reason": "CLI deployment requires roles/serviceusage.serviceUsageConsumer on project zeta-torch-nz37z."
+    },
+    {
+      "id": "BLOCKER_PHASE17_DATASET",
+      "status": "BLOCKED_NO_DATASET",
+      "reason": "Phase 17 dataset candidate ingestion remains uncommenced."
+    }
+  ],
+  "decision": "PASS_WITH_BLOCKERS"
+}

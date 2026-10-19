@@ -169,6 +169,10 @@ export class SyncCoordinator {
       authReq = true;
     }
 
+    if (this.state === NetworkSyncState.AUTH_REQUIRED) {
+      authReq = true;
+    }
+
     return {
       syncStatus: this.state,
       pendingCount,
@@ -245,15 +249,23 @@ export class SyncCoordinator {
 
     try {
       // 3. Push Outbox Events
-      pushedCount = await this.pushOutbox(studentId);
+      const pushResult = await this.pushOutbox(studentId);
+      pushedCount = pushResult.pushed;
+      conflictCount += pushResult.conflicts;
 
       // 4. Pull Inbound Events
       const pullResult = await this.pullInbound(studentId);
       pulledCount = pullResult.pulled;
-      conflictCount = pullResult.conflicts;
+      conflictCount += pullResult.conflicts;
 
       this.lastSuccessfulSync = Date.now();
-      this.state = conflictCount > 0 ? NetworkSyncState.CONFLICT : NetworkSyncState.ONLINE;
+      if (pushResult.authRequired) {
+        this.state = NetworkSyncState.AUTH_REQUIRED;
+      } else if (conflictCount > 0) {
+        this.state = NetworkSyncState.CONFLICT;
+      } else {
+        this.state = NetworkSyncState.ONLINE;
+      }
 
       const summary = await this.getStatusSummary(studentId);
       this.notifyStatusChange(summary);
@@ -276,8 +288,10 @@ export class SyncCoordinator {
   /**
    * Sub-routine: Push pending Outbox items to ISyncTransport.
    */
-  private async pushOutbox(studentId: string): Promise<number> {
+  private async pushOutbox(studentId: string): Promise<{ pushed: number; conflicts: number; authRequired: boolean }> {
     let totalPushed = 0;
+    let totalConflicts = 0;
+    let authRequired = false;
 
     while (true) {
       const pending = await this.outboxManager.getPendingBatch(studentId, this.batchSize);
@@ -315,6 +329,14 @@ export class SyncCoordinator {
 
         // 2. Process rejections
         for (const rej of result.rejected) {
+          if (
+            rej.reason.includes('AUTH_REQUIRED') ||
+            rej.reason.includes('Invalid or expired token') ||
+            rej.reason.includes('Unauthorized') ||
+            rej.reason.includes('Unauthenticated')
+          ) {
+            authRequired = true;
+          }
           const matching = pending.find((p) => p.envelope.syncEventId === rej.syncEventId);
           if (matching) {
             await this.outboxManager.markRejected(matching.outboxId, rej.reason, rej.permanent);
@@ -323,6 +345,7 @@ export class SyncCoordinator {
 
         // 3. Process remote conflicts
         for (const conf of result.conflicts) {
+          totalConflicts++;
           const matching = pending.find((p) => p.envelope.syncEventId === conf.syncEventId);
           if (matching) {
             await this.inboxManager.quarantineConflict({
@@ -349,7 +372,7 @@ export class SyncCoordinator {
       }
     }
 
-    return totalPushed;
+    return { pushed: totalPushed, conflicts: totalConflicts, authRequired };
   }
 
   /**
@@ -493,6 +516,13 @@ export class SyncCoordinator {
     // 2. Clear anonymous cursor & inbox
     await this.cursorManager.deleteCursor(sourceStudentId);
     await this.inboxManager.clearInbox(sourceStudentId);
+  }
+
+  /**
+   * Helper: Get pending outbox count for a student.
+   */
+  public async getPendingOutboxCount(studentId: string): Promise<number> {
+    return this.outboxManager.getOutboxCount(studentId, OutboxStatus.PENDING);
   }
 
   /**

@@ -38,3 +38,4 @@ Thumbs.db
 # Large / Unused binary artifacts
 models/test_whisper/
 *.onnx
+*.obj

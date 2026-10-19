@@ -14,6 +14,8 @@ import { MemoryStorageAdapter } from '../infrastructure/persistence/MemoryStorag
 import { IndexedDBSyncStorageAdapter } from '../infrastructure/sync/IndexedDBSyncStorageAdapter.ts';
 import { MemorySyncStorageAdapter } from '../infrastructure/sync/MemorySyncStorageAdapter.ts';
 import { InMemorySyncTransport } from '../infrastructure/sync/InMemorySyncTransport.ts';
+import { FirestoreSyncTransport } from '../infrastructure/sync/FirestoreSyncTransport.ts';
+import { ISyncTransport } from '../domain/sync/types.ts';
 import { StudentIdentity, StudentIdentityType, StudentIdentityStatus } from '../domain/identity/types.ts';
 import { PersistentMemorizationEvent } from '../domain/persistence/types.ts';
 
@@ -83,9 +85,15 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : new MemorySyncStorageAdapter();
         await syncStorage.init();
 
-        // 3. Sync transport
-        const transport = new InMemorySyncTransport();
-        await transport.connect();
+        // 3. Sync transport: Real Firestore sync with graceful fallback
+        let transport: ISyncTransport;
+        try {
+          transport = new FirestoreSyncTransport();
+          await transport.connect();
+        } catch {
+          transport = new InMemorySyncTransport();
+          await transport.connect();
+        }
 
         // 4. Device ID
         let deviceId = 'web_client_dev_01';
@@ -153,6 +161,34 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error refreshing sync status:', err);
     }
   }, [coordinator, activeStudent.studentId]);
+
+  // Automatic reconnection sync
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = () => {
+      setSummary((prev) => ({ ...prev, isOnline: true }));
+      if (coordinator) {
+        coordinator.sync(activeStudent.studentId).then(refreshStatus).catch(() => {});
+      }
+    };
+
+    const handleOffline = () => {
+      setSummary((prev) => ({
+        ...prev,
+        isOnline: false,
+        syncStatus: NetworkSyncState.OFFLINE,
+      }));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [coordinator, activeStudent.studentId, refreshStatus]);
 
   const syncNow = useCallback(async () => {
     if (!coordinator) return;
@@ -222,4 +258,8 @@ export function useSync(): SyncContextValue {
     throw new Error('useSync must be used within a SyncProvider');
   }
   return context;
+}
+
+export function useOptionalSync(): SyncContextValue | null {
+  return useContext(SyncContext);
 }

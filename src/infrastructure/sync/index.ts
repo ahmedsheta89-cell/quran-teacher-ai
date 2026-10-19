@@ -7,3 +7,4 @@
 export * from './MemorySyncStorageAdapter.ts';
 export * from './IndexedDBSyncStorageAdapter.ts';
 export * from './InMemorySyncTransport.ts';
+export * from './FirestoreSyncTransport.ts';
